@@ -216,10 +216,22 @@
   }
 
   // ---- Kirby drawing ----
-  function drawKirby(x, y, size, rotation) {
+  function drawKirby(x, y, size, rotation, flapAnim) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
+
+    // Squash-and-stretch on flap
+    var scaleX = 1;
+    var scaleY = 1;
+    if (flapAnim > 0) {
+      // t goes from 1.0 (just tapped) down to 0.0 (animation done)
+      var t = flapAnim / 14;
+      // Elastic squash-stretch: squish wide then bounce tall
+      scaleX = 1 + 0.3 * Math.sin(t * Math.PI) * (t > 0.5 ? 1 : -0.5);
+      scaleY = 1 - 0.25 * Math.sin(t * Math.PI) * (t > 0.5 ? 1 : -0.5);
+    }
+    ctx.scale(scaleX, scaleY);
 
     // Body (pink circle)
     ctx.beginPath();
@@ -230,60 +242,92 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Cheeks (blush)
+    // Cheeks (blush) — brighter during flap
+    var blushAlpha = 0.4;
+    if (flapAnim > 6) blushAlpha = 0.7;
+    else if (flapAnim > 0) blushAlpha = 0.55;
+
     ctx.beginPath();
     ctx.ellipse(-size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#FF1493";
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = blushAlpha;
     ctx.fill();
     ctx.globalAlpha = 1;
 
     ctx.beginPath();
     ctx.ellipse(size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#FF1493";
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = blushAlpha;
     ctx.fill();
     ctx.globalAlpha = 1;
 
+    // Eyes — squint shut during first frames of flap, then reopen
+    var eyeScaleY = 1;
+    if (flapAnim > 10) eyeScaleY = 0.15;        // eyes squeezed shut
+    else if (flapAnim > 7) eyeScaleY = 0.4;      // half open
+    else if (flapAnim > 4) eyeScaleY = 0.75;     // mostly open
+
     // Eyes
     ctx.beginPath();
-    ctx.ellipse(-size * 0.28, -size * 0.15, size * 0.18, size * 0.22, 0, 0, Math.PI * 2);
+    ctx.ellipse(-size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#1a1a40";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.ellipse(size * 0.28, -size * 0.15, size * 0.18, size * 0.22, 0, 0, Math.PI * 2);
+    ctx.ellipse(size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#1a1a40";
     ctx.fill();
 
-    // Eye highlights
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.22, -size * 0.25, size * 0.07, size * 0.09, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff";
-    ctx.fill();
+    // Eye highlights (hidden when eyes squinted)
+    if (eyeScaleY > 0.5) {
+      ctx.globalAlpha = (eyeScaleY - 0.5) * 2; // fade in as eyes open
+      ctx.beginPath();
+      ctx.ellipse(-size * 0.22, -size * 0.25, size * 0.07, size * 0.09 * eyeScaleY, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
 
-    ctx.beginPath();
-    ctx.ellipse(size * 0.34, -size * 0.25, size * 0.05, size * 0.07, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff";
-    ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(size * 0.34, -size * 0.25, size * 0.05, size * 0.07 * eyeScaleY, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
-    // Blue eye color
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.3, -size * 0.08, size * 0.1, size * 0.1, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#4169E1";
-    ctx.fill();
+    // Blue eye color (hidden when eyes squinted)
+    if (eyeScaleY > 0.3) {
+      ctx.beginPath();
+      ctx.ellipse(-size * 0.3, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#4169E1";
+      ctx.fill();
 
-    ctx.beginPath();
-    ctx.ellipse(size * 0.26, -size * 0.08, size * 0.1, size * 0.1, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#4169E1";
-    ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(size * 0.26, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#4169E1";
+      ctx.fill();
+    }
 
-    // Mouth (small happy curve)
-    ctx.beginPath();
-    ctx.arc(0, size * 0.2, size * 0.15, 0.1, Math.PI - 0.1);
-    ctx.strokeStyle = "#C41060";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // Mouth — open "O" during flap, otherwise happy curve
+    if (flapAnim > 4) {
+      // Open mouth (cute "O" shape)
+      var mouthOpen = 0.4;
+      if (flapAnim > 10) mouthOpen = 1.0;
+      else if (flapAnim > 7) mouthOpen = 0.7;
+      ctx.beginPath();
+      ctx.ellipse(0, size * 0.25, size * 0.1 * mouthOpen, size * 0.13 * mouthOpen, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#C41060";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(0, size * 0.25, size * 0.06 * mouthOpen, size * 0.08 * mouthOpen, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#2a0010";
+      ctx.fill();
+    } else {
+      // Mouth (small happy curve)
+      ctx.beginPath();
+      ctx.arc(0, size * 0.2, size * 0.15, 0.1, Math.PI - 0.1);
+      ctx.strokeStyle = "#C41060";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // Feet (little red ovals at bottom)
     ctx.beginPath();
@@ -520,6 +564,7 @@
       vy: 0,
       size: 22,
       rotation: 0,
+      flapAnim: 0,
     };
     pipes = [];
     particles = [];
@@ -541,6 +586,9 @@
     bird.vy += GRAVITY;
     bird.y += bird.vy;
     bird.rotation = Math.min(bird.vy * 0.06, 0.5);
+
+    // Flap animation timer
+    if (bird.flapAnim > 0) bird.flapAnim--;
 
     // Floor / ceiling
     if (bird.y + bird.size > H - 40) {
@@ -596,7 +644,7 @@
     drawParticles();
 
     // Kirby
-    drawKirby(bird.x, bird.y, bird.size, bird.rotation);
+    drawKirby(bird.x, bird.y, bird.size, bird.rotation, bird.flapAnim);
 
     drawHUD();
   }
@@ -631,6 +679,7 @@
   function flap() {
     if (!gameRunning) return;
     bird.vy = FLAP_STRENGTH;
+    bird.flapAnim = 14;
     playFlapSound();
   }
 
@@ -662,7 +711,7 @@
   // Initial draw (idle screen background)
   function drawIdleScreen() {
     drawBackground();
-    drawKirby(W / 2, H / 2, 40, 0);
+    drawKirby(W / 2, H / 2, 40, 0, 0);
   }
   drawIdleScreen();
 })();
