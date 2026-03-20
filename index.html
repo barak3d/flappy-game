@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kirby's Math Flight</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="gameCanvas" width="480" height="640"></canvas>
+    <div id="start-screen" class="overlay">
+      <h1>Kirby's Math Flight</h1>
+      <p>Help Kirby fly through the correct answers!</p>
+      <p class="instructions">Press <strong>Space</strong> or <strong>Tap</strong> to flap</p>
+      <button id="startBtn">Start Game</button>
+      <button id="muteBtn">🔊 Music On</button>
+    </div>
+    <div id="game-over-screen" class="overlay hidden">
+      <h1>Game Over!</h1>
+      <p>Score: <span id="finalScore">0</span></p>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
