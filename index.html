@@ -15,10 +15,28 @@
       <p>פִּתְרוּ אֶת הַתַּרְגִּיל וְעוּפוּ דֶּרֶךְ ⭐ הַתְּשׁוּבָה הַנְּכוֹנָה!</p>
       <p class="instructions">לִחְצוּ <strong>רֶוַח</strong> אוֹ <strong>הַקִּישׁוּ</strong> כְּדֵי לָעוּף</p>
       <button id="startBtn">הַתְחִילוּ לְשַׂחֵק</button>
+      <button id="customizeBtn">🎨 הַתְאָמָה אִישִׁית</button>
+    </div>
+    <div id="customize-screen" class="overlay hidden">
+      <h1>🎨 הַתְאָמָה אִישִׁית</h1>
+      <p>שִׂיא נִקּוּד: <span id="bestScoreDisplay">0</span></p>
+      <div id="customize-content">
+        <div class="customize-section">
+          <h2>צְבָעִים</h2>
+          <div id="skins-grid" class="items-grid"></div>
+        </div>
+        <div class="customize-section">
+          <h2>אֲבִיזָרִים</h2>
+          <div id="accessories-grid" class="items-grid"></div>
+        </div>
+      </div>
+      <canvas id="kirby-preview" width="120" height="120"></canvas>
+      <button id="customizeBackBtn">חֲזָרָה</button>
     </div>
     <div id="game-over-screen" class="overlay hidden">
       <h1>הַמִּשְׂחָק נִגְמַר!</h1>
       <p>נִקּוּד: <span id="finalScore">0</span></p>
+      <p>שִׂיא: <span id="bestScoreValue">0</span></p>
       <div id="name-input-section" class="hidden">
         <p>🏆 שִׂיא חָדָשׁ! הַכְנִיסוּ אֶת הַשֵּׁם שֶׁלָּכֶם:</p>
         <input type="text" id="playerName" maxlength="20" placeholder="הַשֵּׁם שֶׁלָּכֶם" dir="rtl" lang="he">
