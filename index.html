@@ -20,18 +20,18 @@
     <div id="customize-screen" class="overlay hidden">
       <h1>🎨 הַתְאָמָה אִישִׁית</h1>
       <p>שִׂיא נִקּוּד: <span id="bestScoreDisplay">0</span></p>
-      <p class="customize-hint">לִחְצוּ עַל פְּרִיט פָּתוּחַ כְּדֵי לִבְחוֹר בּוֹ</p>
+      <canvas id="kirby-preview" width="120" height="120"></canvas>
+      <p class="customize-hint">👆 לִחְצוּ עַל פְּרִיט פָּתוּחַ כְּדֵי לִבְחוֹר בּוֹ</p>
       <div id="customize-content">
         <div class="customize-section">
-          <h2>צְבָעִים</h2>
+          <h2>🎨 צְבָעִים <span id="skins-progress" class="unlock-progress"></span></h2>
           <div id="skins-grid" class="items-grid"></div>
         </div>
         <div class="customize-section">
-          <h2>אֲבִיזָרִים</h2>
+          <h2>✨ אֲבִיזָרִים <span id="accessories-progress" class="unlock-progress"></span></h2>
           <div id="accessories-grid" class="items-grid"></div>
         </div>
       </div>
-      <canvas id="kirby-preview" width="120" height="120"></canvas>
       <button id="customizeBackBtn">חֲזָרָה</button>
     </div>
     <div id="game-over-screen" class="overlay hidden">
