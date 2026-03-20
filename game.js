@@ -845,7 +845,7 @@
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
         } else {
-          if (invincibleTimer > 0) continue; // ignore wrong answers during invincibility
+          playWrongSound();
           takeDamage();
           if (gameOver) return;
         }
