@@ -31,8 +31,13 @@
   const GAP_SHRINK_PER_POINT = 3; // gap shrinks by this per point scored
   const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
+  // ---- Life system ----
+  const MAX_LIVES = 3;
+  const INVINCIBILITY_FRAMES = 90; // ~1.5 seconds of invincibility after a hit
+
   // ---- Game state ----
   let bird, pipes, score, frameCount, gameRunning, gameOver;
+  let lives, invincibleTimer;
   let backgroundOffset = 0;
 
   // ---- Audio (procedural using Web Audio API) ----
@@ -137,6 +142,21 @@
     g.connect(sfxGain);
     osc.start();
     osc.stop(audioCtx.currentTime + 0.4);
+  }
+
+  function playHitSound() {
+    if (!audioCtx || !sfxGain) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.connect(g);
+    g.connect(sfxGain);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
   }
 
   function toggleMute() {
@@ -389,6 +409,8 @@
 
   // ---- Pipe drawing ----
   function drawPipes() {
+    const colors = getPipeColors();
+
     pipes.forEach((pipe) => {
       const px = pipe.x;
 
@@ -396,10 +418,10 @@
       const sectionH = H / 3;
 
       pipe.sections.forEach((sec, i) => {
-        // Pipe above gap
-        drawPipeRect(px, sectionH * i, pipe.width, sec.gapTop - sectionH * i);
-        // Pipe below gap
-        drawPipeRect(px, sec.gapBottom, pipe.width, sectionH * (i + 1) - sec.gapBottom);
+        // Pipe above gap (cap at bottom = opening toward gap)
+        drawMarioPipeSegment(px, sectionH * i, pipe.width, sec.gapTop - sectionH * i, colors, "top");
+        // Pipe below gap (cap at top = opening toward gap)
+        drawMarioPipeSegment(px, sec.gapBottom, pipe.width, sectionH * (i + 1) - sec.gapBottom, colors, "bottom");
 
         // Draw answer number in the gap
         ctx.save();
@@ -447,19 +469,121 @@
     });
   }
 
-  function drawPipeRect(x, y, w, h) {
+  // ---- Pipe color progression based on score ----
+  function getPipeColors() {
+    // Colors progress: green → teal → yellow → orange → red as score increases
+    const stages = [
+      { body: "#2E9B3E", bodyLight: "#5FCF6A", bodyDark: "#1C6B28", rim: "#3DBF50", rimLight: "#72E082", rimDark: "#1F7F32", stroke: "#1A5420" }, // green (classic Mario)
+      { body: "#1E8B8B", bodyLight: "#4FC9C9", bodyDark: "#0E5B5B", rim: "#28ABAB", rimLight: "#62DADA", rimDark: "#147070", stroke: "#0A4040" }, // teal
+      { body: "#C8A800", bodyLight: "#F0D040", bodyDark: "#907800", rim: "#DAB800", rimLight: "#FFE050", rimDark: "#A08800", stroke: "#706000" }, // yellow
+      { body: "#CC6600", bodyLight: "#F09030", bodyDark: "#994400", rim: "#DD7720", rimLight: "#FFB060", rimDark: "#AA5500", stroke: "#703000" }, // orange
+      { body: "#BB2222", bodyLight: "#E05050", bodyDark: "#881111", rim: "#CC3333", rimLight: "#F06060", rimDark: "#991515", stroke: "#600808" }, // red
+    ];
+    const idx = Math.min(Math.floor(score / 3), stages.length - 1);
+    return stages[idx];
+  }
+
+  // ---- Mario-style pipe drawing ----
+  function drawMarioPipeSegment(x, y, w, h, colors, capSide) {
+    // capSide: "top" draws a lip at the bottom edge, "bottom" draws a lip at the top edge
+    // This refers to which side of a gap the pipe is on
     if (h <= 0) return;
     ctx.save();
-    const grad = ctx.createLinearGradient(x, 0, x + w, 0);
-    grad.addColorStop(0, "#3CB371");
-    grad.addColorStop(0.5, "#66CDAA");
-    grad.addColorStop(1, "#3CB371");
-    ctx.fillStyle = grad;
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = "#2E8B57";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
+
+    const lipH = 16;
+    const lipOverhang = 6;
+
+    // Main pipe body gradient
+    const bodyGrad = ctx.createLinearGradient(x, 0, x + w, 0);
+    bodyGrad.addColorStop(0, colors.bodyDark);
+    bodyGrad.addColorStop(0.15, colors.bodyLight);
+    bodyGrad.addColorStop(0.4, colors.body);
+    bodyGrad.addColorStop(0.85, colors.bodyDark);
+    bodyGrad.addColorStop(1, colors.bodyDark);
+
+    // Rim/lip gradient
+    const rimGrad = ctx.createLinearGradient(x - lipOverhang, 0, x + w + lipOverhang, 0);
+    rimGrad.addColorStop(0, colors.rimDark);
+    rimGrad.addColorStop(0.15, colors.rimLight);
+    rimGrad.addColorStop(0.4, colors.rim);
+    rimGrad.addColorStop(0.85, colors.rimDark);
+    rimGrad.addColorStop(1, colors.rimDark);
+
+    if (capSide === "top") {
+      // Pipe body (above the lip)
+      const bodyH = h - lipH;
+      if (bodyH > 0) {
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(x, y, w, bodyH);
+        ctx.strokeStyle = colors.stroke;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, bodyH);
+
+        // Vertical highlight stripe on the body
+        ctx.fillStyle = "rgba(255,255,255,0.10)";
+        ctx.fillRect(x + w * 0.15, y, w * 0.12, bodyH);
+      }
+
+      // Lip at bottom (opening towards gap)
+      const lipY = y + h - lipH;
+      ctx.fillStyle = rimGrad;
+      roundRect(x - lipOverhang, lipY, w + lipOverhang * 2, lipH, 4);
+      ctx.fill();
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Highlight on the lip
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fillRect(x - lipOverhang + 3, lipY + 2, (w + lipOverhang * 2) * 0.25, lipH - 4);
+
+    } else {
+      // capSide === "bottom": lip at the top, body below
+
+      // Lip at top (opening towards gap)
+      ctx.fillStyle = rimGrad;
+      roundRect(x - lipOverhang, y, w + lipOverhang * 2, lipH, 4);
+      ctx.fill();
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Highlight on the lip
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fillRect(x - lipOverhang + 3, y + 2, (w + lipOverhang * 2) * 0.25, lipH - 4);
+
+      // Pipe body (below the lip)
+      const bodyY = y + lipH;
+      const bodyH = h - lipH;
+      if (bodyH > 0) {
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(x, bodyY, w, bodyH);
+        ctx.strokeStyle = colors.stroke;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, bodyY, w, bodyH);
+
+        // Vertical highlight stripe on the body
+        ctx.fillStyle = "rgba(255,255,255,0.10)";
+        ctx.fillRect(x + w * 0.15, bodyY, w * 0.12, bodyH);
+      }
+    }
+
     ctx.restore();
+  }
+
+  // Utility: draw a rounded rectangle path
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
 
   // ---- HUD ----
@@ -472,7 +596,42 @@
     ctx.lineWidth = 3;
     ctx.strokeText("Score: " + score, 14, 96);
     ctx.fillText("Score: " + score, 14, 96);
+
+    // Draw lives as hearts at top-left
+    ctx.font = "28px 'Segoe UI', Arial, sans-serif";
+    for (let i = 0; i < MAX_LIVES; i++) {
+      const heartX = 18 + i * 34;
+      const heartY = 120;
+      if (i < lives) {
+        ctx.fillStyle = "#FF1744";
+        drawHeart(heartX, heartY, 12);
+        ctx.fill();
+        ctx.strokeStyle = "#B71C1C";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "rgba(100,100,100,0.5)";
+        drawHeart(heartX, heartY, 12);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(60,60,60,0.5)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
+  }
+
+  // Draw a heart shape path centred at (cx, cy) with given size
+  function drawHeart(cx, cy, size) {
+    ctx.beginPath();
+    const topY = cy - size * 0.4;
+    ctx.moveTo(cx, cy + size);
+    // Left curve
+    ctx.bezierCurveTo(cx - size * 1.5, cy - size * 0.2, cx - size * 0.8, topY - size, cx, topY);
+    // Right curve
+    ctx.bezierCurveTo(cx + size * 0.8, topY - size, cx + size * 1.5, cy - size * 0.2, cx, cy + size);
+    ctx.closePath();
   }
 
   // ---- Question banner (large, always-visible, centred at top of screen) ----
@@ -616,6 +775,8 @@
     pipes = [];
     particles = [];
     score = 0;
+    lives = MAX_LIVES;
+    invincibleTimer = 0;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -637,15 +798,21 @@
     // Flap animation timer
     if (bird.flapAnim > 0) bird.flapAnim--;
 
+    // Invincibility timer
+    if (invincibleTimer > 0) invincibleTimer--;
+
     // Floor / ceiling
     if (bird.y + bird.size > H - 40) {
       bird.y = H - 40 - bird.size;
-      endGame();
-      return;
+      bird.vy = FLAP_STRENGTH * 0.6;
+      takeDamage();
+      if (gameOver) return;
     }
     if (bird.y - bird.size < 0) {
       bird.y = bird.size;
       bird.vy = 0;
+      takeDamage();
+      if (gameOver) return;
     }
 
     // Spawn pipes (delay the first pipe to give the player time to read)
@@ -664,9 +831,12 @@
     for (const pipe of pipes) {
       const result = checkCollision(pipe);
       if (result === "hit") {
-        playWrongSound();
-        endGame();
-        return;
+        if (invincibleTimer > 0) continue; // ignore wall hits during invincibility
+        takeDamage();
+        if (gameOver) return;
+        // Bounce the bird slightly away from the pipe
+        bird.vy = FLAP_STRENGTH * 0.5;
+        break;
       }
       if (result && typeof result === "object" && !pipe.scored) {
         pipe.scored = true;
@@ -676,8 +846,8 @@
           spawnStars(bird.x + 30, bird.y);
         } else {
           playWrongSound();
-          endGame();
-          return;
+          takeDamage();
+          if (gameOver) return;
         }
       }
     }
@@ -690,8 +860,15 @@
     drawPipes();
     drawParticles();
 
-    // Kirby
-    drawKirby(bird.x, bird.y, bird.size, bird.rotation, bird.flapAnim);
+    // Kirby (blink when invincible)
+    if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      drawKirby(bird.x, bird.y, bird.size, bird.rotation, bird.flapAnim);
+      ctx.restore();
+    } else {
+      drawKirby(bird.x, bird.y, bird.size, bird.rotation, bird.flapAnim);
+    }
 
     drawHUD();
     drawQuestionBanner();
@@ -704,6 +881,18 @@
     if (!gameOver) {
       requestAnimationFrame(gameLoop);
     }
+  }
+
+  function takeDamage() {
+    if (invincibleTimer > 0) return; // still invincible
+    lives--;
+    if (lives <= 0) {
+      playWrongSound();
+      endGame();
+      return;
+    }
+    playHitSound();
+    invincibleTimer = INVINCIBILITY_FRAMES;
   }
 
   function endGame() {
