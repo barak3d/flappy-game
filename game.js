@@ -24,11 +24,11 @@
   const GRAVITY = 0.45;
   const FLAP_STRENGTH = -7.5;
   const PIPE_WIDTH = 90;
-  const PIPE_SPEED = 2.2;
-  const PIPE_INTERVAL = 220; // pixels between pipe centres
-  const INITIAL_GAP_SIZE = 140; // vertical gap at start (easy)
-  const MIN_GAP_SIZE = 95;      // vertical gap at hardest
-  const GAP_SHRINK_PER_POINT = 5; // gap shrinks by this per point scored
+  const PIPE_SPEED = 2.0;
+  const PIPE_INTERVAL = 600; // pixels between pipe centres (wide spacing to read & solve questions)
+  const INITIAL_GAP_SIZE = 170; // vertical gap at start (easy)
+  const MIN_GAP_SIZE = 120;     // vertical gap at hardest
+  const GAP_SHRINK_PER_POINT = 3; // gap shrinks by this per point scored
   const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
   // ---- Game state ----
@@ -37,17 +37,25 @@
 
   // ---- Audio (procedural using Web Audio API) ----
   let audioCtx = null;
+  let masterGain = null;  // master gain to mute/unmute ALL sound
   let musicGain = null;
+  let sfxGain = null;
   let musicPlaying = false;
-  let musicMuted = false;
+  let allMuted = false;
   let flapOsc = null;
 
   function initAudio() {
     if (audioCtx) return;
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 1.0;
+    masterGain.connect(audioCtx.destination);
     musicGain = audioCtx.createGain();
     musicGain.gain.value = 0.18;
-    musicGain.connect(audioCtx.destination);
+    musicGain.connect(masterGain);
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 1.0;
+    sfxGain.connect(masterGain);
   }
 
   // Simple happy background melody using oscillators
@@ -86,7 +94,7 @@
   }
 
   function playFlapSound() {
-    if (!audioCtx) return;
+    if (!audioCtx || !sfxGain) return;
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = "sine";
@@ -95,13 +103,13 @@
     g.gain.setValueAtTime(0.15, audioCtx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
     osc.connect(g);
-    g.connect(audioCtx.destination);
+    g.connect(sfxGain);
     osc.start();
     osc.stop(audioCtx.currentTime + 0.15);
   }
 
   function playCorrectSound() {
-    if (!audioCtx) return;
+    if (!audioCtx || !sfxGain) return;
     const notes = [523, 659, 784];
     notes.forEach((freq, i) => {
       const osc = audioCtx.createOscillator();
@@ -111,14 +119,14 @@
       g.gain.setValueAtTime(0.18, audioCtx.currentTime + i * 0.1);
       g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.1 + 0.2);
       osc.connect(g);
-      g.connect(audioCtx.destination);
+      g.connect(sfxGain);
       osc.start(audioCtx.currentTime + i * 0.1);
       osc.stop(audioCtx.currentTime + i * 0.1 + 0.2);
     });
   }
 
   function playWrongSound() {
-    if (!audioCtx) return;
+    if (!audioCtx || !sfxGain) return;
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = "sawtooth";
@@ -126,17 +134,17 @@
     g.gain.setValueAtTime(0.2, audioCtx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
     osc.connect(g);
-    g.connect(audioCtx.destination);
+    g.connect(sfxGain);
     osc.start();
     osc.stop(audioCtx.currentTime + 0.4);
   }
 
   function toggleMute() {
-    musicMuted = !musicMuted;
-    if (musicGain) {
-      musicGain.gain.value = musicMuted ? 0 : 0.18;
+    allMuted = !allMuted;
+    if (masterGain) {
+      masterGain.gain.value = allMuted ? 0 : 1.0;
     }
-    muteBtn.textContent = musicMuted ? "🔇 Music Off" : "🔊 Music On";
+    muteBtn.textContent = allMuted ? "🔇 Sound Off" : "🔊 Sound On";
   }
 
   // ---- Arithmetic problem generator (1st grade) ----
@@ -384,20 +392,6 @@
     pipes.forEach((pipe) => {
       const px = pipe.x;
 
-      // Draw the problem text above the pipe
-      if (px > -pipe.width && px < W) {
-        ctx.save();
-        ctx.fillStyle = "#fff";
-        ctx.strokeStyle = "#333";
-        ctx.lineWidth = 3;
-        ctx.font = "bold 20px 'Segoe UI', Arial, sans-serif";
-        ctx.textAlign = "center";
-        const textX = px + pipe.width / 2;
-        ctx.strokeText(pipe.problem.text, textX, 30);
-        ctx.fillText(pipe.problem.text, textX, 30);
-        ctx.restore();
-      }
-
       // Draw pipe columns with gaps
       const sectionH = H / 3;
 
@@ -415,7 +409,7 @@
         if (sec.correct) {
           // Correct answer: green bubble with star indicator
           ctx.beginPath();
-          ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
+          ctx.arc(bubbleX, centerY, 30, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(50,205,50,0.9)";
           ctx.fill();
           ctx.strokeStyle = "#228B22";
@@ -423,16 +417,16 @@
           ctx.stroke();
 
           // Star icon above the bubble
-          ctx.font = "18px 'Segoe UI', Arial, sans-serif";
+          ctx.font = "20px 'Segoe UI', Arial, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
-          ctx.fillText("⭐", bubbleX, centerY - 26);
+          ctx.fillText("⭐", bubbleX, centerY - 30);
 
           ctx.fillStyle = "#fff";
         } else {
           // Wrong answer: plain white bubble
           ctx.beginPath();
-          ctx.arc(bubbleX, centerY, 22, 0, Math.PI * 2);
+          ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(255,255,255,0.9)";
           ctx.fill();
           ctx.strokeStyle = "#555";
@@ -443,7 +437,7 @@
         }
 
         // Answer number
-        ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
+        ctx.font = "bold 30px 'Segoe UI', Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(sec.value, bubbleX, centerY);
@@ -476,8 +470,61 @@
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 3;
-    ctx.strokeText("Score: " + score, 14, 60);
-    ctx.fillText("Score: " + score, 14, 60);
+    ctx.strokeText("Score: " + score, 14, 96);
+    ctx.fillText("Score: " + score, 14, 96);
+    ctx.restore();
+  }
+
+  // ---- Question banner (large, always-visible, centred at top of screen) ----
+  function drawQuestionBanner() {
+    // Find the nearest pipe that hasn't been scored (the next challenge)
+    const activePipe = pipes.find((p) => !p.scored && p.x + p.width > bird.x - bird.size);
+    if (!activePipe) return;
+
+    const questionText = activePipe.problem.text;
+
+    ctx.save();
+
+    // Large semi-transparent rounded banner background spanning most of the width
+    const bw = 380;
+    const bh = 70;
+    const bx = (W - bw) / 2;
+    const by = 6;
+    const radius = 20;
+    ctx.beginPath();
+    ctx.moveTo(bx + radius, by);
+    ctx.lineTo(bx + bw - radius, by);
+    ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + radius);
+    ctx.lineTo(bx + bw, by + bh - radius);
+    ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - radius, by + bh);
+    ctx.lineTo(bx + radius, by + bh);
+    ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - radius);
+    ctx.lineTo(bx, by + radius);
+    ctx.quadraticCurveTo(bx, by, bx + radius, by);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fill();
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // "Solve:" label
+    ctx.font = "bold 18px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFF";
+    ctx.fillText("Solve:", W / 2, by + 18);
+
+    // Question text (large, centred, very prominent)
+    ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFD700";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 4;
+    ctx.strokeText(questionText, W / 2, by + 48);
+    ctx.fillText(questionText, W / 2, by + 48);
+
     ctx.restore();
   }
 
@@ -601,9 +648,9 @@
       bird.vy = 0;
     }
 
-    // Spawn pipes (delay the first pipe to give the player time)
+    // Spawn pipes (delay the first pipe to give the player time to read)
     const lastPipe = pipes[pipes.length - 1];
-    if (frameCount > 80 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
+    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
       pipes.push(createPipe(W + 20));
     }
 
@@ -647,6 +694,7 @@
     drawKirby(bird.x, bird.y, bird.size, bird.rotation, bird.flapAnim);
 
     drawHUD();
+    drawQuestionBanner();
   }
 
   function gameLoop() {
@@ -667,7 +715,7 @@
 
   function startGame() {
     initAudio();
-    if (!musicMuted) startMusic();
+    if (!allMuted) startMusic();
     resetGame();
     // Give an initial flap so Kirby doesn't fall immediately
     bird.vy = FLAP_STRENGTH;
