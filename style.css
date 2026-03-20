@@ -1,3 +1,8 @@
+:root {
+  --game-width: 480;
+  --game-height: 640;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -16,8 +21,8 @@ body {
 
 #game-wrapper {
   position: relative;
-  width: min(480px, 100vw, calc(100vh * 480 / 640));
-  aspect-ratio: 480 / 640;
+  width: min(calc(var(--game-width) * 1px), 100vw, calc(100vh * var(--game-width) / var(--game-height)));
+  aspect-ratio: var(--game-width) / var(--game-height);
 }
 
 canvas {
