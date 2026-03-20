@@ -1,3 +1,8 @@
+:root {
+  --game-width: 480;
+  --game-height: 640;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -17,12 +22,14 @@ body {
 
 #game-wrapper {
   position: relative;
-  width: 480px;
-  height: 640px;
+  width: min(calc(var(--game-width) * 1px), 100vw, calc(100vh * var(--game-width) / var(--game-height)));
+  aspect-ratio: var(--game-width) / var(--game-height);
 }
 
 canvas {
   display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 12px;
   box-shadow: 0 0 30px rgba(255, 105, 180, 0.4);
 }
@@ -41,6 +48,7 @@ canvas {
   border-radius: 12px;
   color: #fff;
   z-index: 10;
+  overflow-y: auto;
 }
 
 .overlay.hidden {
@@ -106,4 +114,59 @@ canvas {
 #muteBtn:hover {
   transform: scale(1.05);
   background: rgba(0, 0, 0, 0.75);
+}
+
+@media (max-width: 400px) {
+  .overlay h1 {
+    font-size: 1.8rem;
+  }
+
+  .overlay p {
+    font-size: 0.95rem;
+    padding: 0 12px;
+  }
+
+  .overlay .instructions {
+    font-size: 0.85rem;
+  }
+
+  .overlay button {
+    padding: 12px 30px;
+    font-size: 1rem;
+  }
+
+  #muteBtn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    bottom: 40px;
+  }
+}
+
+@media (max-height: 500px) {
+  .overlay h1 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+  }
+
+  .overlay p {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    padding: 0 10px;
+  }
+
+  .overlay .instructions {
+    font-size: 0.75rem;
+  }
+
+  .overlay button {
+    margin-top: 8px;
+    padding: 10px 24px;
+    font-size: 0.9rem;
+  }
+
+  #muteBtn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    bottom: 30px;
+  }
 }
