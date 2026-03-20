@@ -17,6 +17,7 @@ body {
   background: #1a1a2e;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
+  direction: rtl;
 }
 
 #game-wrapper {
@@ -97,7 +98,7 @@ canvas {
 #muteBtn {
   position: absolute;
   bottom: 52px;
-  right: 10px;
+  left: 10px;
   z-index: 20;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;

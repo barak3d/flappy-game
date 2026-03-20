@@ -1,5 +1,5 @@
-// ===================== Kirby's Math Flight =====================
-// A flappy-bird style game that teaches first-grade arithmetic.
+// ================= קִירְבִּי טָס בְּחֶשְׁבּוֹן =================
+// A flappy-bird style game that teaches first-grade arithmetic (Hebrew).
 // Kirby must fly through the pipe gap that shows the CORRECT answer.
 // ================================================================
 
@@ -164,7 +164,7 @@
     if (masterGain) {
       masterGain.gain.value = allMuted ? 0 : 1.0;
     }
-    muteBtn.textContent = allMuted ? "🔇 Sound Off" : "🔊 Sound On";
+    muteBtn.textContent = allMuted ? "🔇 קוֹל כָּבוּי" : "🔊 קוֹל דָּלוּק";
   }
 
   // ---- Arithmetic problem generator (1st grade) ----
@@ -590,17 +590,17 @@
   function drawHUD() {
     ctx.save();
     ctx.font = "bold 32px 'Segoe UI', Arial, sans-serif";
-    ctx.textAlign = "left";
+    ctx.textAlign = "right";
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 3;
-    ctx.strokeText("Score: " + score, 14, 96);
-    ctx.fillText("Score: " + score, 14, 96);
+    ctx.strokeText("נִקּוּד: " + score, W - 14, 96);
+    ctx.fillText("נִקּוּד: " + score, W - 14, 96);
 
-    // Draw lives as hearts at top-left
+    // Draw lives as hearts at top-right
     ctx.font = "28px 'Segoe UI', Arial, sans-serif";
     for (let i = 0; i < MAX_LIVES; i++) {
-      const heartX = 18 + i * 34;
+      const heartX = W - 18 - i * 34;
       const heartY = 120;
       if (i < lives) {
         ctx.fillStyle = "#FF1744";
@@ -667,12 +667,12 @@
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // "Solve:" label
+    // "!פִּתְרוּ" label
     ctx.font = "bold 18px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#FFF";
-    ctx.fillText("Solve:", W / 2, by + 18);
+    ctx.fillText("!פִּתְרוּ", W / 2, by + 18);
 
     // Question text (large, centred, very prominent)
     ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
