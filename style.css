@@ -109,6 +109,20 @@ canvas {
   box-shadow: 0 4px 15px rgba(255, 105, 180, 0.5);
 }
 
+#customizeBtnGameOver {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(155, 89, 182, 0.5);
+  font-size: 1rem;
+  padding: 10px 30px;
+}
+
+.customize-hint {
+  font-size: 0.85rem;
+  color: #ccc;
+  margin-bottom: 4px;
+}
+
 #customize-screen {
   padding: 16px 10px;
   gap: 6px;

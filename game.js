@@ -21,6 +21,7 @@
   const restartBtn = document.getElementById("restartBtn");
   const muteBtn = document.getElementById("muteBtn");
   const customizeBtn = document.getElementById("customizeBtn");
+  const customizeBtnGameOver = document.getElementById("customizeBtnGameOver");
   const customizeScreen = document.getElementById("customize-screen");
   const customizeBackBtn = document.getElementById("customizeBackBtn");
   const bestScoreDisplayEl = document.getElementById("bestScoreDisplay");
@@ -1366,6 +1367,7 @@
   // ---- Customization screen ----
   function openCustomizeScreen() {
     startScreen.classList.add("hidden");
+    gameOverScreen.classList.add("hidden");
     customizeScreen.classList.remove("hidden");
     bestScoreDisplayEl.textContent = bestScore;
     buildCustomizeGrid();
@@ -1475,6 +1477,7 @@
 
   // ---- Event listeners ----
   customizeBtn.addEventListener("click", openCustomizeScreen);
+  customizeBtnGameOver.addEventListener("click", openCustomizeScreen);
   customizeBackBtn.addEventListener("click", closeCustomizeScreen);
   startBtn.addEventListener("click", startGame);
   restartBtn.addEventListener("click", startGame);
