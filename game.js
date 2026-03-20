@@ -466,12 +466,12 @@
   function drawHUD() {
     ctx.save();
     ctx.font = "bold 32px 'Segoe UI', Arial, sans-serif";
-    ctx.textAlign = "left";
+    ctx.textAlign = "right";
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 3;
-    ctx.strokeText("נִקּוּד: " + score, 14, 96);
-    ctx.fillText("נִקּוּד: " + score, 14, 96);
+    ctx.strokeText("נִקּוּד: " + score, W - 14, 96);
+    ctx.fillText("נִקּוּד: " + score, W - 14, 96);
     ctx.restore();
   }
 
