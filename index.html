@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kirby's Math Flight</title>
+  <title>קִירְבִּי טָס בְּחֶשְׁבּוֹן</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game-wrapper">
     <canvas id="gameCanvas" width="480" height="640"></canvas>
-    <button id="muteBtn">🔊 Sound On</button>
+    <button id="muteBtn">🔊 קוֹל דָּלוּק</button>
     <div id="start-screen" class="overlay">
-      <h1>Kirby's Math Flight</h1>
-      <p>Solve the math problem and fly through the ⭐ correct answer!</p>
-      <p class="instructions">Press <strong>Space</strong> or <strong>Tap</strong> to flap</p>
-      <button id="startBtn">Start Game</button>
+      <h1>קִירְבִּי טָס בְּחֶשְׁבּוֹן</h1>
+      <p>פִּתְרוּ אֶת הַתַּרְגִּיל וְעוּפוּ דֶּרֶךְ ⭐ הַתְּשׁוּבָה הַנְּכוֹנָה!</p>
+      <p class="instructions">לִחְצוּ <strong>רֶוַח</strong> אוֹ <strong>הַקִּישׁוּ</strong> כְּדֵי לָעוּף</p>
+      <button id="startBtn">הַתְחִילוּ לְשַׂחֵק</button>
     </div>
     <div id="game-over-screen" class="overlay hidden">
-      <h1>Game Over!</h1>
-      <p>Score: <span id="finalScore">0</span></p>
-      <button id="restartBtn">Play Again</button>
+      <h1>הַמִּשְׂחָק נִגְמַר!</h1>
+      <p>נִקּוּד: <span id="finalScore">0</span></p>
+      <button id="restartBtn">שַׂחֲקוּ שׁוּב</button>
     </div>
   </div>
   <script src="game.js"></script>
