@@ -27,6 +27,8 @@
   const bestScoreDisplayEl = document.getElementById("bestScoreDisplay");
   const skinsGrid = document.getElementById("skins-grid");
   const accessoriesGrid = document.getElementById("accessories-grid");
+  const skinsProgressEl = document.getElementById("skins-progress");
+  const accessoriesProgressEl = document.getElementById("accessories-progress");
   const previewCanvas = document.getElementById("kirby-preview");
   const previewCtx = previewCanvas.getContext("2d");
   const nameInputSection = document.getElementById("name-input-section");
@@ -1383,9 +1385,13 @@
 
   function buildCustomizeGrid() {
     skinsGrid.innerHTML = "";
+    var totalSkins = 0;
+    var unlockedSkins = 0;
     for (var key in SKINS) {
+      totalSkins++;
       var skin = SKINS[key];
       var unlocked = bestScore >= skin.unlock;
+      if (unlocked) unlockedSkins++;
       var selected = key === selectedSkin;
       var card = document.createElement("div");
       card.className = "item-card" + (selected ? " selected" : "") + (unlocked ? "" : " locked");
@@ -1415,11 +1421,16 @@
       card.addEventListener("click", onItemClick);
       skinsGrid.appendChild(card);
     }
+    skinsProgressEl.textContent = "(" + unlockedSkins + "/" + totalSkins + ")";
 
     accessoriesGrid.innerHTML = "";
+    var totalAcc = 0;
+    var unlockedAcc = 0;
     for (var key in ACCESSORIES) {
+      totalAcc++;
       var acc = ACCESSORIES[key];
       var unlocked = bestScore >= acc.unlock;
+      if (unlocked) unlockedAcc++;
       var selected = key === selectedAccessory;
       var card = document.createElement("div");
       card.className = "item-card" + (selected ? " selected" : "") + (unlocked ? "" : " locked");
@@ -1447,6 +1458,7 @@
       card.addEventListener("click", onItemClick);
       accessoriesGrid.appendChild(card);
     }
+    accessoriesProgressEl.textContent = "(" + unlockedAcc + "/" + totalAcc + ")";
   }
 
   function onItemClick(e) {
