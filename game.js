@@ -234,12 +234,12 @@
       a = randInt(1, 10);
       b = randInt(1, 10);
       answer = a + b;
-      return { text: "\u200E" + a + " + " + b + " = ?", answer: answer };
+      return { text: a + " + " + b + " = ?", answer: answer };
     } else {
       a = randInt(2, 15);
       b = randInt(1, a);   // ensure non-negative result
       answer = a - b;
-      return { text: "\u200E" + a + " − " + b + " = ?", answer: answer };
+      return { text: a + " − " + b + " = ?", answer: answer };
     }
   }
 
@@ -908,6 +908,7 @@
     ctx.fillText("!פִּתְרוּ", W / 2, by + 18);
 
     // Question text (large, centred, very prominent)
+    ctx.direction = "ltr";
     ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
