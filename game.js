@@ -26,7 +26,9 @@
   const PIPE_WIDTH = 90;
   const PIPE_SPEED = 2.2;
   const PIPE_INTERVAL = 220; // pixels between pipe centres
-  const ANSWER_GAP_SIZE = 85; // vertical gap for each answer slot
+  const INITIAL_GAP_SIZE = 140; // vertical gap at start (easy)
+  const MIN_GAP_SIZE = 95;      // vertical gap at hardest
+  const GAP_SHRINK_PER_POINT = 5; // gap shrinks by this per point scored
   const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
   // ---- Game state ----
@@ -168,6 +170,11 @@
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
+  // ---- Gap size based on current score (progressive difficulty) ----
+  function currentGapSize() {
+    return Math.max(MIN_GAP_SIZE, INITIAL_GAP_SIZE - score * GAP_SHRINK_PER_POINT);
+  }
+
   // ---- Pipe (with answers) ----
   function createPipe(x) {
     const problem = generateProblem();
@@ -179,7 +186,7 @@
     // Determine 3 gap positions (we create 3 openings, each shows an answer)
     // The pipe is divided into 3 sections with a gap in each
     const sectionH = H / 3;
-    const gapSize = ANSWER_GAP_SIZE;
+    const gapSize = currentGapSize();
 
     const sections = options.map((val, i) => {
       const centerY = sectionH * i + sectionH / 2;
@@ -358,21 +365,45 @@
 
         // Draw answer number in the gap
         ctx.save();
+        const centerY = (sec.gapTop + sec.gapBottom) / 2;
+        const bubbleX = px + pipe.width / 2;
+
+        if (sec.correct) {
+          // Correct answer: green bubble with star indicator
+          ctx.beginPath();
+          ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(50,205,50,0.9)";
+          ctx.fill();
+          ctx.strokeStyle = "#228B22";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Star icon above the bubble
+          ctx.font = "18px 'Segoe UI', Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText("⭐", bubbleX, centerY - 26);
+
+          ctx.fillStyle = "#fff";
+        } else {
+          // Wrong answer: plain white bubble
+          ctx.beginPath();
+          ctx.arc(bubbleX, centerY, 22, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.fill();
+          ctx.strokeStyle = "#555";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = "#222";
+        }
+
+        // Answer number
         ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const centerY = (sec.gapTop + sec.gapBottom) / 2;
-        // Bubble behind number
-        ctx.beginPath();
-        ctx.arc(px + pipe.width / 2, centerY, 22, 0, Math.PI * 2);
-        ctx.fillStyle = sec.correct ? "rgba(144,238,144,0.9)" : "rgba(255,255,255,0.9)";
-        ctx.fill();
-        ctx.strokeStyle = "#555";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // Number
-        ctx.fillStyle = "#222";
-        ctx.fillText(sec.value, px + pipe.width / 2, centerY);
+        ctx.fillText(sec.value, bubbleX, centerY);
+
         ctx.restore();
       });
     });
