@@ -24,11 +24,11 @@
   const GRAVITY = 0.45;
   const FLAP_STRENGTH = -7.5;
   const PIPE_WIDTH = 90;
-  const PIPE_SPEED = 2.2;
-  const PIPE_INTERVAL = 380; // pixels between pipe centres (wider spacing for easier play)
-  const INITIAL_GAP_SIZE = 140; // vertical gap at start (easy)
-  const MIN_GAP_SIZE = 95;      // vertical gap at hardest
-  const GAP_SHRINK_PER_POINT = 5; // gap shrinks by this per point scored
+  const PIPE_SPEED = 2.0;
+  const PIPE_INTERVAL = 600; // pixels between pipe centres (wide spacing to read & solve questions)
+  const INITIAL_GAP_SIZE = 170; // vertical gap at start (easy)
+  const MIN_GAP_SIZE = 120;     // vertical gap at hardest
+  const GAP_SHRINK_PER_POINT = 3; // gap shrinks by this per point scored
   const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
   // ---- Game state ----
@@ -365,7 +365,7 @@
         if (sec.correct) {
           // Correct answer: green bubble with star indicator
           ctx.beginPath();
-          ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
+          ctx.arc(bubbleX, centerY, 30, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(50,205,50,0.9)";
           ctx.fill();
           ctx.strokeStyle = "#228B22";
@@ -373,16 +373,16 @@
           ctx.stroke();
 
           // Star icon above the bubble
-          ctx.font = "18px 'Segoe UI', Arial, sans-serif";
+          ctx.font = "20px 'Segoe UI', Arial, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
-          ctx.fillText("⭐", bubbleX, centerY - 26);
+          ctx.fillText("⭐", bubbleX, centerY - 30);
 
           ctx.fillStyle = "#fff";
         } else {
           // Wrong answer: plain white bubble
           ctx.beginPath();
-          ctx.arc(bubbleX, centerY, 22, 0, Math.PI * 2);
+          ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(255,255,255,0.9)";
           ctx.fill();
           ctx.strokeStyle = "#555";
@@ -393,7 +393,7 @@
         }
 
         // Answer number
-        ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
+        ctx.font = "bold 30px 'Segoe UI', Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(sec.value, bubbleX, centerY);
@@ -426,12 +426,12 @@
     ctx.fillStyle = "#fff";
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 3;
-    ctx.strokeText("Score: " + score, 14, 60);
-    ctx.fillText("Score: " + score, 14, 60);
+    ctx.strokeText("Score: " + score, 14, 96);
+    ctx.fillText("Score: " + score, 14, 96);
     ctx.restore();
   }
 
-  // ---- Question banner (fixed at top centre of screen) ----
+  // ---- Question banner (large, always-visible, centred at top of screen) ----
   function drawQuestionBanner() {
     // Find the nearest pipe that hasn't been scored (the next challenge)
     const activePipe = pipes.find((p) => !p.scored && p.x + p.width > bird.x - bird.size);
@@ -441,12 +441,12 @@
 
     ctx.save();
 
-    // Semi-transparent rounded banner background
-    const bw = 280;
-    const bh = 48;
+    // Large semi-transparent rounded banner background spanning most of the width
+    const bw = 380;
+    const bh = 70;
     const bx = (W - bw) / 2;
     const by = 6;
-    const radius = 16;
+    const radius = 20;
     ctx.beginPath();
     ctx.moveTo(bx + radius, by);
     ctx.lineTo(bx + bw - radius, by);
@@ -458,21 +458,28 @@
     ctx.lineTo(bx, by + radius);
     ctx.quadraticCurveTo(bx, by, bx + radius, by);
     ctx.closePath();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
     ctx.fill();
     ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Question text (large, centred)
-    ctx.font = "bold 28px 'Segoe UI', Arial, sans-serif";
+    // "Solve:" label
+    ctx.font = "bold 18px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFF";
+    ctx.fillText("Solve:", W / 2, by + 18);
+
+    // Question text (large, centred, very prominent)
+    ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#FFD700";
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 3;
-    ctx.strokeText(questionText, W / 2, by + bh / 2);
-    ctx.fillText(questionText, W / 2, by + bh / 2);
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 4;
+    ctx.strokeText(questionText, W / 2, by + 48);
+    ctx.fillText(questionText, W / 2, by + 48);
 
     ctx.restore();
   }
@@ -593,9 +600,9 @@
       bird.vy = 0;
     }
 
-    // Spawn pipes (delay the first pipe to give the player time)
+    // Spawn pipes (delay the first pipe to give the player time to read)
     const lastPipe = pipes[pipes.length - 1];
-    if (frameCount > 80 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
+    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
       pipes.push(createPipe(W + 20));
     }
 
