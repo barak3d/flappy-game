@@ -28,6 +28,14 @@
   const accessoriesGrid = document.getElementById("accessories-grid");
   const previewCanvas = document.getElementById("kirby-preview");
   const previewCtx = previewCanvas.getContext("2d");
+  const nameInputSection = document.getElementById("name-input-section");
+  const playerNameInput = document.getElementById("playerName");
+  const saveScoreBtn = document.getElementById("saveScoreBtn");
+  const leaderboardBody = document.getElementById("leaderboard-body");
+
+  // ---- Leaderboard constants ----
+  const LEADERBOARD_KEY = "flappy-kirby-leaderboard";
+  const MAX_LEADERBOARD = 5;
 
   // ---- Game constants ----
   const GRAVITY = 0.45;
@@ -44,10 +52,18 @@
   const MAX_LIVES = 3;
   const INVINCIBILITY_FRAMES = 90; // ~1.5 seconds of invincibility after a hit
 
+  // ---- Hard mode (after reaching this score, correct answer is no longer highlighted) ----
+  const HARD_MODE_THRESHOLD = 10;
+  const HARD_MODE_PIPE_INTERVAL = 900;  // wider spacing so kids can calculate
+  const HARD_MODE_INITIAL_SPEED = 1.5;  // slower start after hard mode kicks in
+  const HARD_MODE_SPEED_INCREMENT = 0.08; // speed increase per point beyond threshold
+  const HARD_MODE_MAX_SPEED = 3.0;
+
   // ---- Game state ----
   let bird, pipes, score, frameCount, gameRunning, gameOver;
   let lives, invincibleTimer;
   let backgroundOffset = 0;
+  let hardModeRewardGiven = false; // tracks whether the extra life at 10 pts was awarded
 
   // ---- Customization data ----
   const SKINS = {
@@ -243,6 +259,23 @@
   // ---- Gap size based on current score (progressive difficulty) ----
   function currentGapSize() {
     return Math.max(MIN_GAP_SIZE, INITIAL_GAP_SIZE - score * GAP_SHRINK_PER_POINT);
+  }
+
+  function isHardMode() {
+    return score >= HARD_MODE_THRESHOLD;
+  }
+
+  // ---- Dynamic pipe speed (ramps up after hard mode threshold) ----
+  function currentPipeSpeed() {
+    if (!isHardMode()) return PIPE_SPEED;
+    const extra = score - HARD_MODE_THRESHOLD;
+    return Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + extra * HARD_MODE_SPEED_INCREMENT);
+  }
+
+  // ---- Dynamic pipe interval (wider after hard mode threshold) ----
+  function currentPipeInterval() {
+    if (!isHardMode()) return PIPE_INTERVAL;
+    return HARD_MODE_PIPE_INTERVAL;
   }
 
   // ---- Pipe (with answers) ----
@@ -628,8 +661,8 @@
         const centerY = (sec.gapTop + sec.gapBottom) / 2;
         const bubbleX = px + pipe.width / 2;
 
-        if (sec.correct) {
-          // Correct answer: green bubble with star indicator
+        if (sec.correct && !isHardMode()) {
+          // Correct answer: green bubble with star indicator (only before hard mode)
           ctx.beginPath();
           ctx.arc(bubbleX, centerY, 30, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(50,205,50,0.9)";
@@ -646,7 +679,7 @@
 
           ctx.fillStyle = "#fff";
         } else {
-          // Wrong answer: plain white bubble
+          // Wrong answer (or any answer in hard mode): plain white bubble
           ctx.beginPath();
           ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(255,255,255,0.9)";
@@ -978,6 +1011,7 @@
     score = 0;
     lives = MAX_LIVES;
     invincibleTimer = 0;
+    hardModeRewardGiven = false;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -989,7 +1023,8 @@
     if (!gameRunning) return;
 
     frameCount++;
-    backgroundOffset += PIPE_SPEED;
+    const speed = currentPipeSpeed();
+    backgroundOffset += speed;
 
     // Bird physics
     bird.vy += GRAVITY;
@@ -1018,12 +1053,13 @@
 
     // Spawn pipes (delay the first pipe to give the player time to read)
     const lastPipe = pipes[pipes.length - 1];
-    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
+    const interval = currentPipeInterval();
+    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - interval)) {
       pipes.push(createPipe(W + 20));
     }
 
     // Move pipes
-    pipes.forEach((p) => (p.x -= PIPE_SPEED));
+    pipes.forEach((p) => (p.x -= speed));
 
     // Remove off-screen pipes
     pipes = pipes.filter((p) => p.x + p.width > -20);
@@ -1046,6 +1082,14 @@
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
           checkUnlocks();
+
+          // Award an extra life when entering hard mode
+          if (score === HARD_MODE_THRESHOLD && !hardModeRewardGiven) {
+            hardModeRewardGiven = true;
+            if (lives < MAX_LIVES) {
+              lives++;
+            }
+          }
         } else {
           playWrongSound();
           takeDamage();
@@ -1098,6 +1142,70 @@
     invincibleTimer = INVINCIBILITY_FRAMES;
   }
 
+  // ---- Leaderboard helpers ----
+  function loadLeaderboard() {
+    try {
+      const data = localStorage.getItem(LEADERBOARD_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveLeaderboard(board) {
+    try {
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
+    } catch (_) { /* storage full or unavailable */ }
+  }
+
+  function qualifiesForLeaderboard(newScore) {
+    if (newScore <= 0) return false;
+    const board = loadLeaderboard();
+    if (board.length < MAX_LEADERBOARD) return true;
+    return newScore > board[board.length - 1].score;
+  }
+
+  function addToLeaderboard(name, newScore) {
+    const board = loadLeaderboard();
+    board.push({ name: name, score: newScore });
+    board.sort((a, b) => b.score - a.score);
+    if (board.length > MAX_LEADERBOARD) board.length = MAX_LEADERBOARD;
+    saveLeaderboard(board);
+    return board.findIndex((e) => e.name === name && e.score === newScore);
+  }
+
+  function renderLeaderboard(highlightIndex) {
+    const board = loadLeaderboard();
+    leaderboardBody.innerHTML = "";
+    if (board.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 3;
+      td.style.color = "#aaa";
+      td.textContent = "אֵין שִׂיאִים עֲדַיִן";
+      tr.appendChild(td);
+      leaderboardBody.appendChild(tr);
+      return;
+    }
+    const medals = ["🥇", "🥈", "🥉"];
+    board.forEach((entry, i) => {
+      const tr = document.createElement("tr");
+      if (highlightIndex !== undefined && i === highlightIndex) {
+        tr.classList.add("highlight");
+      }
+      const tdPlace = document.createElement("td");
+      tdPlace.textContent = medals[i] || (i + 1);
+      const tdName = document.createElement("td");
+      tdName.textContent = entry.name;
+      const tdScore = document.createElement("td");
+      tdScore.textContent = entry.score;
+      tr.appendChild(tdPlace);
+      tr.appendChild(tdName);
+      tr.appendChild(tdScore);
+      leaderboardBody.appendChild(tr);
+    });
+  }
+
   function endGame() {
     gameRunning = false;
     gameOver = true;
@@ -1109,8 +1217,41 @@
     }
     finalScoreEl.textContent = score;
     bestScoreValueEl.textContent = bestScore;
+
+    if (qualifiesForLeaderboard(score)) {
+      nameInputSection.classList.remove("hidden");
+      playerNameInput.value = "";
+      playerNameInput.focus();
+    } else {
+      nameInputSection.classList.add("hidden");
+    }
+
+    renderLeaderboard();
     gameOverScreen.classList.remove("hidden");
   }
+
+  function handleSaveScore() {
+    const name = playerNameInput.value.trim();
+    if (!name) {
+      playerNameInput.focus();
+      return;
+    }
+    const idx = addToLeaderboard(name, score);
+    nameInputSection.classList.add("hidden");
+    renderLeaderboard(idx);
+  }
+
+  saveScoreBtn.addEventListener("click", handleSaveScore);
+  // Stop propagation on name input key events so game controls (e.g. Space to flap) don't fire
+  playerNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSaveScore();
+    }
+    e.stopPropagation();
+  });
+  playerNameInput.addEventListener("keyup", (e) => e.stopPropagation());
+  playerNameInput.addEventListener("keypress", (e) => e.stopPropagation());
 
   function startGame() {
     initAudio();
