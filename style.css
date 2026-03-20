@@ -97,7 +97,7 @@ canvas {
 
 #muteBtn {
   position: absolute;
-  bottom: 52px;
+  top: 10px;
   left: 10px;
   z-index: 20;
   background: rgba(0, 0, 0, 0.55);
@@ -231,7 +231,7 @@ canvas {
   #muteBtn {
     padding: 6px 12px;
     font-size: 0.85rem;
-    bottom: 40px;
+    top: 8px;
   }
 }
 
@@ -260,6 +260,6 @@ canvas {
   #muteBtn {
     padding: 5px 10px;
     font-size: 0.8rem;
-    bottom: 30px;
+    top: 6px;
   }
 }
