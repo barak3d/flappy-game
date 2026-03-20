@@ -184,21 +184,55 @@
   }
 
   // ---- Arithmetic problem generator (1st grade) ----
+  let usedProblems = new Set();
+
+  function problemKey(op, a, b) {
+    // For addition, normalize order (commutativity: 1+4 == 4+1)
+    if (op === "+") {
+      return "+" + Math.min(a, b) + ":" + Math.max(a, b);
+    }
+    return "-" + a + ":" + b;
+  }
+
   function generateProblem() {
     // Addition or subtraction, numbers 1-10, result >= 0
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const isAdd = Math.random() < 0.6;
+      let a, b, answer, key;
+      if (isAdd) {
+        a = randInt(1, 10);
+        b = randInt(1, 10);
+        answer = a + b;
+        key = problemKey("+", a, b);
+      } else {
+        a = randInt(2, 15);
+        b = randInt(1, a);   // ensure non-negative result
+        answer = a - b;
+        key = problemKey("-", a, b);
+      }
+      if (!usedProblems.has(key)) {
+        usedProblems.add(key);
+        const op = isAdd ? " + " : " − ";
+        return { text: a + op + b + " = ?", answer: answer };
+      }
+    }
+    // All problems exhausted – clear and start fresh
+    usedProblems.clear();
     const isAdd = Math.random() < 0.6;
     let a, b, answer;
     if (isAdd) {
       a = randInt(1, 10);
       b = randInt(1, 10);
       answer = a + b;
-      return { text: a + " + " + b + " = ?", answer: answer };
     } else {
       a = randInt(2, 15);
-      b = randInt(1, a);   // ensure non-negative result
+      b = randInt(1, a);
       answer = a - b;
-      return { text: a + " − " + b + " = ?", answer: answer };
     }
+    const key = problemKey(isAdd ? "+" : "-", a, b);
+    usedProblems.add(key);
+    const op = isAdd ? " + " : " − ";
+    return { text: a + op + b + " = ?", answer: answer };
   }
 
   function generateWrongAnswers(correct) {
@@ -807,6 +841,7 @@
     };
     pipes = [];
     particles = [];
+    usedProblems.clear();
     score = 0;
     lives = MAX_LIVES;
     invincibleTimer = 0;
