@@ -35,10 +35,18 @@
   const MAX_LIVES = 3;
   const INVINCIBILITY_FRAMES = 90; // ~1.5 seconds of invincibility after a hit
 
+  // ---- Hard mode (after reaching this score, correct answer is no longer highlighted) ----
+  const HARD_MODE_THRESHOLD = 10;
+  const HARD_MODE_PIPE_INTERVAL = 900;  // wider spacing so kids can calculate
+  const HARD_MODE_INITIAL_SPEED = 1.5;  // slower start after hard mode kicks in
+  const HARD_MODE_SPEED_INCREMENT = 0.08; // speed increase per point beyond threshold
+  const HARD_MODE_MAX_SPEED = 3.0;
+
   // ---- Game state ----
   let bird, pipes, score, frameCount, gameRunning, gameOver;
   let lives, invincibleTimer;
   let backgroundOffset = 0;
+  let hardModeRewardGiven = false; // tracks whether the extra life at 10 pts was awarded
 
   // ---- Audio (procedural using Web Audio API) ----
   let audioCtx = null;
@@ -201,6 +209,23 @@
   // ---- Gap size based on current score (progressive difficulty) ----
   function currentGapSize() {
     return Math.max(MIN_GAP_SIZE, INITIAL_GAP_SIZE - score * GAP_SHRINK_PER_POINT);
+  }
+
+  function isHardMode() {
+    return score >= HARD_MODE_THRESHOLD;
+  }
+
+  // ---- Dynamic pipe speed (ramps up after hard mode threshold) ----
+  function currentPipeSpeed() {
+    if (!isHardMode()) return PIPE_SPEED;
+    const extra = score - HARD_MODE_THRESHOLD;
+    return Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + extra * HARD_MODE_SPEED_INCREMENT);
+  }
+
+  // ---- Dynamic pipe interval (wider after hard mode threshold) ----
+  function currentPipeInterval() {
+    if (!isHardMode()) return PIPE_INTERVAL;
+    return HARD_MODE_PIPE_INTERVAL;
   }
 
   // ---- Pipe (with answers) ----
@@ -428,8 +453,8 @@
         const centerY = (sec.gapTop + sec.gapBottom) / 2;
         const bubbleX = px + pipe.width / 2;
 
-        if (sec.correct) {
-          // Correct answer: green bubble with star indicator
+        if (sec.correct && !isHardMode()) {
+          // Correct answer: green bubble with star indicator (only before hard mode)
           ctx.beginPath();
           ctx.arc(bubbleX, centerY, 30, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(50,205,50,0.9)";
@@ -446,7 +471,7 @@
 
           ctx.fillStyle = "#fff";
         } else {
-          // Wrong answer: plain white bubble
+          // Wrong answer (or any answer in hard mode): plain white bubble
           ctx.beginPath();
           ctx.arc(bubbleX, centerY, 26, 0, Math.PI * 2);
           ctx.fillStyle = "rgba(255,255,255,0.9)";
@@ -777,6 +802,7 @@
     score = 0;
     lives = MAX_LIVES;
     invincibleTimer = 0;
+    hardModeRewardGiven = false;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -788,7 +814,8 @@
     if (!gameRunning) return;
 
     frameCount++;
-    backgroundOffset += PIPE_SPEED;
+    const speed = currentPipeSpeed();
+    backgroundOffset += speed;
 
     // Bird physics
     bird.vy += GRAVITY;
@@ -817,12 +844,13 @@
 
     // Spawn pipes (delay the first pipe to give the player time to read)
     const lastPipe = pipes[pipes.length - 1];
-    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - PIPE_INTERVAL)) {
+    const interval = currentPipeInterval();
+    if (frameCount > 120 && (!lastPipe || lastPipe.x < W - interval)) {
       pipes.push(createPipe(W + 20));
     }
 
     // Move pipes
-    pipes.forEach((p) => (p.x -= PIPE_SPEED));
+    pipes.forEach((p) => (p.x -= speed));
 
     // Remove off-screen pipes
     pipes = pipes.filter((p) => p.x + p.width > -20);
@@ -844,6 +872,14 @@
           score++;
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
+
+          // Award an extra life when entering hard mode
+          if (score === HARD_MODE_THRESHOLD && !hardModeRewardGiven) {
+            hardModeRewardGiven = true;
+            if (lives < MAX_LIVES) {
+              lives++;
+            }
+          }
         } else {
           playWrongSound();
           takeDamage();
