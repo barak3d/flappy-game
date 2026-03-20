@@ -24,9 +24,10 @@
   const GRAVITY = 0.45;
   const FLAP_STRENGTH = -7.5;
   const PIPE_WIDTH = 90;
-  const GAP_HEIGHT = 160;
   const PIPE_SPEED = 2.2;
   const PIPE_INTERVAL = 220; // pixels between pipe centres
+  const ANSWER_GAP_SIZE = 85; // vertical gap for each answer slot
+  const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
   // ---- Game state ----
   let bird, pipes, score, frameCount, gameRunning, gameOver;
@@ -52,7 +53,7 @@
     if (!audioCtx || musicPlaying) return;
     musicPlaying = true;
 
-    // A simple repeating melody: C D E C  E C D -
+    // Simple melody using note frequencies (Hz): C4=262, D4=294, E4=330, F4=349, G4=392; 0=rest
     const notes = [262, 294, 330, 262, 330, 262, 294, 0,
                    330, 349, 392, 0, 392, 349, 330, 294,
                    262, 294, 330, 262, 294, 0, 262, 0];
@@ -77,7 +78,7 @@
 
     // Schedule several loops ahead
     const now = audioCtx.currentTime;
-    for (let l = 0; l < 200; l++) {
+    for (let l = 0; l < MUSIC_LOOP_COUNT; l++) {
       scheduleLoop(now + l * loopLen);
     }
   }
@@ -178,7 +179,7 @@
     // Determine 3 gap positions (we create 3 openings, each shows an answer)
     // The pipe is divided into 3 sections with a gap in each
     const sectionH = H / 3;
-    const gapSize = 85;
+    const gapSize = ANSWER_GAP_SIZE;
 
     const sections = options.map((val, i) => {
       const centerY = sectionH * i + sectionH / 2;
