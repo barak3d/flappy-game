@@ -16,9 +16,18 @@
   const startScreen = document.getElementById("start-screen");
   const gameOverScreen = document.getElementById("game-over-screen");
   const finalScoreEl = document.getElementById("finalScore");
+  const bestScoreValueEl = document.getElementById("bestScoreValue");
   const startBtn = document.getElementById("startBtn");
   const restartBtn = document.getElementById("restartBtn");
   const muteBtn = document.getElementById("muteBtn");
+  const customizeBtn = document.getElementById("customizeBtn");
+  const customizeScreen = document.getElementById("customize-screen");
+  const customizeBackBtn = document.getElementById("customizeBackBtn");
+  const bestScoreDisplayEl = document.getElementById("bestScoreDisplay");
+  const skinsGrid = document.getElementById("skins-grid");
+  const accessoriesGrid = document.getElementById("accessories-grid");
+  const previewCanvas = document.getElementById("kirby-preview");
+  const previewCtx = previewCanvas.getContext("2d");
 
   // ---- Game constants ----
   const GRAVITY = 0.45;
@@ -39,6 +48,39 @@
   let bird, pipes, score, frameCount, gameRunning, gameOver;
   let lives, invincibleTimer;
   let backgroundOffset = 0;
+
+  // ---- Customization data ----
+  const SKINS = {
+    classic: { name: "קְלָסִי", body: "#FF69B4", stroke: "#D1477A", blush: "#FF1493", feet: "#DC143C", unlock: 0 },
+    ocean:   { name: "אוֹקְיָנוּס", body: "#69B4FF", stroke: "#477AD1", blush: "#1493FF", feet: "#143CDC", unlock: 5 },
+    forest:  { name: "יַעַר", body: "#69FFB4", stroke: "#47D17A", blush: "#14FF93", feet: "#14DC3C", unlock: 10 },
+    sunset:  { name: "שְׁקִיעָה", body: "#FFB469", stroke: "#D1A047", blush: "#FF9314", feet: "#DC6914", unlock: 15 },
+    royal:   { name: "מַלְכוּתִי", body: "#B469FF", stroke: "#8A47D1", blush: "#9314FF", feet: "#6914DC", unlock: 20 },
+    golden:  { name: "זְהָב", body: "#FFD700", stroke: "#DAA520", blush: "#FFC125", feet: "#B8860B", unlock: 30 },
+  };
+
+  const ACCESSORIES = {
+    none:       { name: "לְלֹא", emoji: "❌", unlock: 0 },
+    crown:      { name: "כֶּתֶר", emoji: "👑", unlock: 3 },
+    bow:        { name: "סֶרֶט", emoji: "🎀", unlock: 7 },
+    sunglasses: { name: "מִשְׁקָפַיִם", emoji: "🕶️", unlock: 12 },
+    cape:       { name: "גַּלִּימָה", emoji: "🦸", unlock: 18 },
+    star_aura:  { name: "הִילָת כּוֹכָבִים", emoji: "✨", unlock: 25 },
+  };
+
+  // ---- Customization state (persisted in localStorage) ----
+  let bestScore = parseInt(localStorage.getItem("kirbyBestScore")) || 0;
+  let selectedSkin = localStorage.getItem("kirbySelectedSkin") || "classic";
+  let selectedAccessory = localStorage.getItem("kirbySelectedAccessory") || "none";
+  let unlockNotification = { text: "", timer: 0 };
+
+  // Validate stored selections still exist
+  if (!SKINS[selectedSkin]) selectedSkin = "classic";
+  if (!ACCESSORIES[selectedAccessory]) selectedAccessory = "none";
+
+  function getActiveSkin() {
+    return SKINS[selectedSkin] || SKINS.classic;
+  }
 
   // ---- Audio (procedural using Web Audio API) ----
   let audioCtx = null;
@@ -244,131 +286,289 @@
   }
 
   // ---- Kirby drawing ----
-  function drawKirby(x, y, size, rotation, flapAnim) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
+  function drawKirby(x, y, size, rotation, flapAnim, targetCtx) {
+    var c = targetCtx || ctx;
+    var skin = getActiveSkin();
+
+    c.save();
+    c.translate(x, y);
+    c.rotate(rotation);
 
     // Squash-and-stretch on flap
     var scaleX = 1;
     var scaleY = 1;
     if (flapAnim > 0) {
-      // t goes from 1.0 (just tapped) down to 0.0 (animation done)
       var t = flapAnim / 14;
-      // Elastic squash-stretch: squish wide then bounce tall
       scaleX = 1 + 0.3 * Math.sin(t * Math.PI) * (t > 0.5 ? 1 : -0.5);
       scaleY = 1 - 0.25 * Math.sin(t * Math.PI) * (t > 0.5 ? 1 : -0.5);
     }
-    ctx.scale(scaleX, scaleY);
+    c.scale(scaleX, scaleY);
 
-    // Body (pink circle)
-    ctx.beginPath();
-    ctx.arc(0, 0, size, 0, Math.PI * 2);
-    ctx.fillStyle = "#FF69B4";
-    ctx.fill();
-    ctx.strokeStyle = "#D1477A";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // Cape accessory drawn behind Kirby
+    if (selectedAccessory === "cape") {
+      drawCape(c, size, skin);
+    }
 
-    // Cheeks (blush) — brighter during flap
+    // Body
+    c.beginPath();
+    c.arc(0, 0, size, 0, Math.PI * 2);
+    c.fillStyle = skin.body;
+    c.fill();
+    c.strokeStyle = skin.stroke;
+    c.lineWidth = 2;
+    c.stroke();
+
+    // Cheeks (blush)
     var blushAlpha = 0.4;
     if (flapAnim > 6) blushAlpha = 0.7;
     else if (flapAnim > 0) blushAlpha = 0.55;
 
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#FF1493";
-    ctx.globalAlpha = blushAlpha;
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    c.beginPath();
+    c.ellipse(-size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
+    c.fillStyle = skin.blush;
+    c.globalAlpha = blushAlpha;
+    c.fill();
+    c.globalAlpha = 1;
 
-    ctx.beginPath();
-    ctx.ellipse(size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#FF1493";
-    ctx.globalAlpha = blushAlpha;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Eyes — squint shut during first frames of flap, then reopen
-    var eyeScaleY = 1;
-    if (flapAnim > 10) eyeScaleY = 0.15;        // eyes squeezed shut
-    else if (flapAnim > 7) eyeScaleY = 0.4;      // half open
-    else if (flapAnim > 4) eyeScaleY = 0.75;     // mostly open
+    c.beginPath();
+    c.ellipse(size * 0.5, size * 0.2, size * 0.2, size * 0.12, 0, 0, Math.PI * 2);
+    c.fillStyle = skin.blush;
+    c.globalAlpha = blushAlpha;
+    c.fill();
+    c.globalAlpha = 1;
 
     // Eyes
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#1a1a40";
-    ctx.fill();
+    var eyeScaleY = 1;
+    if (flapAnim > 10) eyeScaleY = 0.15;
+    else if (flapAnim > 7) eyeScaleY = 0.4;
+    else if (flapAnim > 4) eyeScaleY = 0.75;
 
-    ctx.beginPath();
-    ctx.ellipse(size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#1a1a40";
-    ctx.fill();
+    c.beginPath();
+    c.ellipse(-size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
+    c.fillStyle = "#1a1a40";
+    c.fill();
 
-    // Eye highlights (hidden when eyes squinted)
+    c.beginPath();
+    c.ellipse(size * 0.28, -size * 0.15, size * 0.18, size * 0.22 * eyeScaleY, 0, 0, Math.PI * 2);
+    c.fillStyle = "#1a1a40";
+    c.fill();
+
+    // Eye highlights
     if (eyeScaleY > 0.5) {
-      ctx.globalAlpha = (eyeScaleY - 0.5) * 2; // fade in as eyes open
-      ctx.beginPath();
-      ctx.ellipse(-size * 0.22, -size * 0.25, size * 0.07, size * 0.09 * eyeScaleY, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff";
-      ctx.fill();
+      c.globalAlpha = (eyeScaleY - 0.5) * 2;
+      c.beginPath();
+      c.ellipse(-size * 0.22, -size * 0.25, size * 0.07, size * 0.09 * eyeScaleY, 0, 0, Math.PI * 2);
+      c.fillStyle = "#fff";
+      c.fill();
 
-      ctx.beginPath();
-      ctx.ellipse(size * 0.34, -size * 0.25, size * 0.05, size * 0.07 * eyeScaleY, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff";
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      c.beginPath();
+      c.ellipse(size * 0.34, -size * 0.25, size * 0.05, size * 0.07 * eyeScaleY, 0, 0, Math.PI * 2);
+      c.fillStyle = "#fff";
+      c.fill();
+      c.globalAlpha = 1;
     }
 
-    // Blue eye color (hidden when eyes squinted)
+    // Blue eye color
     if (eyeScaleY > 0.3) {
-      ctx.beginPath();
-      ctx.ellipse(-size * 0.3, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#4169E1";
-      ctx.fill();
+      c.beginPath();
+      c.ellipse(-size * 0.3, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
+      c.fillStyle = "#4169E1";
+      c.fill();
 
-      ctx.beginPath();
-      ctx.ellipse(size * 0.26, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#4169E1";
-      ctx.fill();
+      c.beginPath();
+      c.ellipse(size * 0.26, -size * 0.08, size * 0.1, size * 0.1 * eyeScaleY, 0, 0, Math.PI * 2);
+      c.fillStyle = "#4169E1";
+      c.fill();
     }
 
-    // Mouth — open "O" during flap, otherwise happy curve
+    // Mouth
     if (flapAnim > 4) {
-      // Open mouth (cute "O" shape)
       var mouthOpen = 0.4;
       if (flapAnim > 10) mouthOpen = 1.0;
       else if (flapAnim > 7) mouthOpen = 0.7;
-      ctx.beginPath();
-      ctx.ellipse(0, size * 0.25, size * 0.1 * mouthOpen, size * 0.13 * mouthOpen, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#C41060";
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, size * 0.25, size * 0.06 * mouthOpen, size * 0.08 * mouthOpen, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "#2a0010";
-      ctx.fill();
+      c.beginPath();
+      c.ellipse(0, size * 0.25, size * 0.1 * mouthOpen, size * 0.13 * mouthOpen, 0, 0, Math.PI * 2);
+      c.fillStyle = skin.stroke;
+      c.fill();
+      c.beginPath();
+      c.ellipse(0, size * 0.25, size * 0.06 * mouthOpen, size * 0.08 * mouthOpen, 0, 0, Math.PI * 2);
+      c.fillStyle = "#2a0010";
+      c.fill();
     } else {
-      // Mouth (small happy curve)
-      ctx.beginPath();
-      ctx.arc(0, size * 0.2, size * 0.15, 0.1, Math.PI - 0.1);
-      ctx.strokeStyle = "#C41060";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      c.beginPath();
+      c.arc(0, size * 0.2, size * 0.15, 0.1, Math.PI - 0.1);
+      c.strokeStyle = skin.stroke;
+      c.lineWidth = 2;
+      c.stroke();
     }
 
-    // Feet (little red ovals at bottom)
-    ctx.beginPath();
-    ctx.ellipse(-size * 0.35, size * 0.85, size * 0.22, size * 0.12, -0.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#DC143C";
-    ctx.fill();
+    // Feet
+    c.beginPath();
+    c.ellipse(-size * 0.35, size * 0.85, size * 0.22, size * 0.12, -0.2, 0, Math.PI * 2);
+    c.fillStyle = skin.feet;
+    c.fill();
 
-    ctx.beginPath();
-    ctx.ellipse(size * 0.35, size * 0.85, size * 0.22, size * 0.12, 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#DC143C";
-    ctx.fill();
+    c.beginPath();
+    c.ellipse(size * 0.35, size * 0.85, size * 0.22, size * 0.12, 0.2, 0, Math.PI * 2);
+    c.fillStyle = skin.feet;
+    c.fill();
 
-    ctx.restore();
+    // Accessory drawn on top (except cape which is behind)
+    if (selectedAccessory && selectedAccessory !== "none" && selectedAccessory !== "cape") {
+      drawAccessoryOnTop(c, size);
+    }
+
+    c.restore();
+
+    // Star aura drawn outside the save/restore so it orbits in world space
+    if (selectedAccessory === "star_aura") {
+      drawStarAura(targetCtx || ctx, x, y, size);
+    }
+  }
+
+  // ---- Accessory drawing functions ----
+  function drawCape(c, size, skin) {
+    c.save();
+    c.beginPath();
+    c.moveTo(-size * 0.2, -size * 0.5);
+    c.quadraticCurveTo(-size * 1.8, size * 0.3, -size * 0.6, size * 1.2);
+    c.lineTo(-size * 0.1, size * 0.6);
+    c.closePath();
+    c.fillStyle = skin.stroke;
+    c.globalAlpha = 0.7;
+    c.fill();
+    c.globalAlpha = 1;
+    c.restore();
+  }
+
+  function drawAccessoryOnTop(c, size) {
+    switch (selectedAccessory) {
+      case "crown":
+        drawCrown(c, size);
+        break;
+      case "bow":
+        drawBow(c, size);
+        break;
+      case "sunglasses":
+        drawSunglasses(c, size);
+        break;
+    }
+  }
+
+  function drawCrown(c, size) {
+    var crownY = -size * 1.05;
+    var crownW = size * 0.8;
+    var crownH = size * 0.5;
+    c.save();
+    c.fillStyle = "#FFD700";
+    c.strokeStyle = "#DAA520";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(-crownW / 2, crownY);
+    c.lineTo(-crownW / 2, crownY - crownH * 0.4);
+    c.lineTo(-crownW / 4, crownY - crownH * 0.15);
+    c.lineTo(0, crownY - crownH);
+    c.lineTo(crownW / 4, crownY - crownH * 0.15);
+    c.lineTo(crownW / 2, crownY - crownH * 0.4);
+    c.lineTo(crownW / 2, crownY);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    // Jewels
+    c.fillStyle = "#FF1744";
+    c.beginPath();
+    c.arc(0, crownY - crownH * 0.55, size * 0.06, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#2196F3";
+    c.beginPath();
+    c.arc(-crownW * 0.3, crownY - crownH * 0.2, size * 0.04, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.arc(crownW * 0.3, crownY - crownH * 0.2, size * 0.04, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  function drawBow(c, size) {
+    var bowY = -size * 0.95;
+    c.save();
+    // Left loop
+    c.beginPath();
+    c.ellipse(-size * 0.25, bowY, size * 0.25, size * 0.15, -0.3, 0, Math.PI * 2);
+    c.fillStyle = "#FF4081";
+    c.fill();
+    c.strokeStyle = "#C2185B";
+    c.lineWidth = 1;
+    c.stroke();
+    // Right loop
+    c.beginPath();
+    c.ellipse(size * 0.25, bowY, size * 0.25, size * 0.15, 0.3, 0, Math.PI * 2);
+    c.fillStyle = "#FF4081";
+    c.fill();
+    c.strokeStyle = "#C2185B";
+    c.stroke();
+    // Center knot
+    c.beginPath();
+    c.arc(0, bowY, size * 0.1, 0, Math.PI * 2);
+    c.fillStyle = "#E91E63";
+    c.fill();
+    c.restore();
+  }
+
+  function drawSunglasses(c, size) {
+    var glassY = -size * 0.12;
+    var glassW = size * 0.3;
+    var glassH = size * 0.2;
+    c.save();
+    c.fillStyle = "rgba(20, 20, 40, 0.85)";
+    c.strokeStyle = "#333";
+    c.lineWidth = 1.5;
+    // Left lens
+    c.beginPath();
+    c.ellipse(-size * 0.28, glassY, glassW, glassH, 0, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    // Right lens
+    c.beginPath();
+    c.ellipse(size * 0.28, glassY, glassW, glassH, 0, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    // Bridge
+    c.beginPath();
+    c.moveTo(-size * 0.05, glassY);
+    c.lineTo(size * 0.05, glassY);
+    c.strokeStyle = "#333";
+    c.lineWidth = 2;
+    c.stroke();
+    // Shine on lenses
+    c.beginPath();
+    c.ellipse(-size * 0.2, glassY - glassH * 0.3, glassW * 0.3, glassH * 0.25, -0.3, 0, Math.PI * 2);
+    c.fillStyle = "rgba(255, 255, 255, 0.2)";
+    c.fill();
+    c.beginPath();
+    c.ellipse(size * 0.36, glassY - glassH * 0.3, glassW * 0.2, glassH * 0.2, -0.3, 0, Math.PI * 2);
+    c.fillStyle = "rgba(255, 255, 255, 0.15)";
+    c.fill();
+    c.restore();
+  }
+
+  function drawStarAura(c, cx, cy, size) {
+    c.save();
+    var count = 6;
+    var t = (typeof frameCount !== "undefined" ? frameCount : 0) * 0.04;
+    for (var i = 0; i < count; i++) {
+      var angle = t + (Math.PI * 2 / count) * i;
+      var dist = size * 1.6 + Math.sin(t * 2 + i) * size * 0.2;
+      var sx = cx + Math.cos(angle) * dist;
+      var sy = cy + Math.sin(angle) * dist;
+      var starSize = size * 0.18 + Math.sin(t * 3 + i * 1.5) * size * 0.06;
+      c.fillStyle = "#FFD700";
+      c.globalAlpha = 0.6 + Math.sin(t * 2 + i) * 0.3;
+      drawStar(sx, sy, 5, starSize, starSize * 0.5, c);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+    c.restore();
   }
 
   // ---- Background drawing ----
@@ -726,19 +926,20 @@
     });
   }
 
-  function drawStar(cx, cy, spikes, outerR, innerR) {
+  function drawStar(cx, cy, spikes, outerR, innerR, targetCtx) {
+    var c = targetCtx || ctx;
     let rot = (Math.PI / 2) * 3;
     const step = Math.PI / spikes;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - outerR);
+    c.beginPath();
+    c.moveTo(cx, cy - outerR);
     for (let i = 0; i < spikes; i++) {
-      ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+      c.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
       rot += step;
-      ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+      c.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
       rot += step;
     }
-    ctx.lineTo(cx, cy - outerR);
-    ctx.closePath();
+    c.lineTo(cx, cy - outerR);
+    c.closePath();
   }
 
   // ---- Collision detection ----
@@ -844,6 +1045,7 @@
           score++;
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
+          checkUnlocks();
         } else {
           playWrongSound();
           takeDamage();
@@ -872,6 +1074,7 @@
 
     drawHUD();
     drawQuestionBanner();
+    drawUnlockNotification();
   }
 
   function gameLoop() {
@@ -898,7 +1101,14 @@
   function endGame() {
     gameRunning = false;
     gameOver = true;
+    // bestScore is already persisted by checkUnlocks() during gameplay;
+    // this covers the case where no new unlocks occurred
+    if (score > bestScore) {
+      bestScore = score;
+      localStorage.setItem("kirbyBestScore", bestScore);
+    }
     finalScoreEl.textContent = score;
+    bestScoreValueEl.textContent = bestScore;
     gameOverScreen.classList.remove("hidden");
   }
 
@@ -910,6 +1120,7 @@
     bird.vy = FLAP_STRENGTH;
     startScreen.classList.add("hidden");
     gameOverScreen.classList.add("hidden");
+    customizeScreen.classList.add("hidden");
     gameLoop();
   }
 
@@ -920,7 +1131,175 @@
     playFlapSound();
   }
 
+  // ---- Unlock checking ----
+  function checkUnlocks() {
+    if (score <= bestScore) return; // only check on new personal bests
+    var newlyUnlocked = [];
+    for (var key in SKINS) {
+      if (SKINS[key].unlock > bestScore && SKINS[key].unlock <= score) {
+        newlyUnlocked.push(SKINS[key].name);
+      }
+    }
+    for (var key in ACCESSORIES) {
+      if (ACCESSORIES[key].unlock > bestScore && ACCESSORIES[key].unlock <= score) {
+        newlyUnlocked.push(ACCESSORIES[key].name);
+      }
+    }
+    // Update bestScore immediately during play
+    bestScore = score;
+    localStorage.setItem("kirbyBestScore", bestScore);
+    if (newlyUnlocked.length > 0) {
+      unlockNotification = { text: "🎉 !פְּרִיט חָדָשׁ נִפְתַּח", timer: 120 };
+    }
+  }
+
+  function drawUnlockNotification() {
+    if (unlockNotification.timer <= 0) return;
+    unlockNotification.timer--;
+    var alpha = Math.min(1, unlockNotification.timer / 20);
+    var slideY = 0;
+    if (unlockNotification.timer > 100) {
+      slideY = (120 - unlockNotification.timer) * 2;
+    } else if (unlockNotification.timer < 20) {
+      slideY = 40;
+      alpha = unlockNotification.timer / 20;
+    } else {
+      slideY = 40;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    var bannerW = 300;
+    var bannerH = 40;
+    var bx = (W - bannerW) / 2;
+    var by = H - 80 - slideY;
+    ctx.fillStyle = "rgba(50, 50, 50, 0.85)";
+    roundRect(bx, by, bannerW, bannerH, 12);
+    ctx.fill();
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = "bold 18px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#FFD700";
+    ctx.fillText(unlockNotification.text, W / 2, by + bannerH / 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // ---- Customization screen ----
+  function openCustomizeScreen() {
+    startScreen.classList.add("hidden");
+    customizeScreen.classList.remove("hidden");
+    bestScoreDisplayEl.textContent = bestScore;
+    buildCustomizeGrid();
+    updatePreview();
+  }
+
+  function closeCustomizeScreen() {
+    customizeScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
+    drawIdleScreen();
+  }
+
+  function buildCustomizeGrid() {
+    skinsGrid.innerHTML = "";
+    for (var key in SKINS) {
+      var skin = SKINS[key];
+      var unlocked = bestScore >= skin.unlock;
+      var selected = key === selectedSkin;
+      var card = document.createElement("div");
+      card.className = "item-card" + (selected ? " selected" : "") + (unlocked ? "" : " locked");
+      card.dataset.key = key;
+      card.dataset.type = "skin";
+
+      var icon = document.createElement("div");
+      icon.className = "item-icon";
+      icon.style.backgroundColor = skin.body;
+      icon.style.border = "2px solid " + skin.stroke;
+      icon.style.borderRadius = "50%";
+
+      var name = document.createElement("div");
+      name.className = "item-name";
+      name.textContent = skin.name;
+
+      card.appendChild(icon);
+      card.appendChild(name);
+
+      if (!unlocked) {
+        var lock = document.createElement("div");
+        lock.className = "item-lock";
+        lock.textContent = "🔒 " + skin.unlock;
+        card.appendChild(lock);
+      }
+
+      card.addEventListener("click", onItemClick);
+      skinsGrid.appendChild(card);
+    }
+
+    accessoriesGrid.innerHTML = "";
+    for (var key in ACCESSORIES) {
+      var acc = ACCESSORIES[key];
+      var unlocked = bestScore >= acc.unlock;
+      var selected = key === selectedAccessory;
+      var card = document.createElement("div");
+      card.className = "item-card" + (selected ? " selected" : "") + (unlocked ? "" : " locked");
+      card.dataset.key = key;
+      card.dataset.type = "accessory";
+
+      var icon = document.createElement("div");
+      icon.className = "item-icon";
+      icon.textContent = acc.emoji;
+
+      var name = document.createElement("div");
+      name.className = "item-name";
+      name.textContent = acc.name;
+
+      card.appendChild(icon);
+      card.appendChild(name);
+
+      if (!unlocked) {
+        var lock = document.createElement("div");
+        lock.className = "item-lock";
+        lock.textContent = "🔒 " + acc.unlock;
+        card.appendChild(lock);
+      }
+
+      card.addEventListener("click", onItemClick);
+      accessoriesGrid.appendChild(card);
+    }
+  }
+
+  function onItemClick(e) {
+    var card = e.currentTarget;
+    if (card.classList.contains("locked")) return;
+    var key = card.dataset.key;
+    var type = card.dataset.type;
+    if (type === "skin") {
+      selectedSkin = key;
+      localStorage.setItem("kirbySelectedSkin", selectedSkin);
+    } else {
+      selectedAccessory = key;
+      localStorage.setItem("kirbySelectedAccessory", selectedAccessory);
+    }
+    buildCustomizeGrid();
+    updatePreview();
+  }
+
+  function updatePreview() {
+    var pCtx = previewCtx;
+    var pw = previewCanvas.width;
+    var ph = previewCanvas.height;
+    pCtx.clearRect(0, 0, pw, ph);
+    // Light sky background
+    pCtx.fillStyle = "rgba(135, 206, 235, 0.3)";
+    pCtx.fillRect(0, 0, pw, ph);
+    drawKirby(pw / 2, ph / 2, 35, 0, 0, pCtx);
+  }
+
   // ---- Event listeners ----
+  customizeBtn.addEventListener("click", openCustomizeScreen);
+  customizeBackBtn.addEventListener("click", closeCustomizeScreen);
   startBtn.addEventListener("click", startGame);
   restartBtn.addEventListener("click", startGame);
   muteBtn.addEventListener("click", toggleMute);
