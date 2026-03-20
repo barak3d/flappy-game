@@ -192,12 +192,12 @@
       a = randInt(1, 10);
       b = randInt(1, 10);
       answer = a + b;
-      return { text: a + " + " + b + " = ?", answer: answer };
+      return { text: "\u200E" + a + " + " + b + " = ?", answer: answer };
     } else {
       a = randInt(2, 15);
       b = randInt(1, a);   // ensure non-negative result
       answer = a - b;
-      return { text: a + " − " + b + " = ?", answer: answer };
+      return { text: "\u200E" + a + " − " + b + " = ?", answer: answer };
     }
   }
 
