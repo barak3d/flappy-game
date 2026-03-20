@@ -256,7 +256,7 @@
       if (!usedProblems.has(key)) {
         usedProblems.add(key);
         const op = isAdd ? " + " : " − ";
-        return { text: "\u200E" + a + op + b + " = ?", answer: answer };
+        return { text: a + op + b + " = ?", answer: answer };
       }
     }
     // All problems exhausted – clear and start fresh
@@ -275,7 +275,7 @@
     const key = problemKey(isAdd ? "+" : "-", a, b);
     usedProblems.add(key);
     const op = isAdd ? " + " : " − ";
-    return { text: "\u200E" + a + op + b + " = ?", answer: answer };
+    return { text: a + op + b + " = ?", answer: answer };
   }
 
   function generateWrongAnswers(correct) {
@@ -943,6 +943,7 @@
     ctx.fillText("!פִּתְרוּ", W / 2, by + 18);
 
     // Question text (large, centred, very prominent)
+    ctx.direction = "ltr";
     ctx.font = "bold 36px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
