@@ -105,6 +105,8 @@
   let backgroundOffset = 0;
   let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
   let hardModeActivated = false; // once hard mode triggers, it stays on for the rest of the game
+  let pendingHardMode = false;   // defer activation until bird clears the trigger pipe
+  let hardModeTriggerPipe = null; // the pipe that caused the threshold to be reached
   let clocks = [];             // scrolling clock reward objects (move left like pipes)
   let slowdownTimer = 0;       // remaining frames of slow-down effect
   let lastClockScore = 0;      // last score at which a clock was spawned
@@ -1296,6 +1298,8 @@
     invincibleTimer = 0;
     extraLivesAwarded = 0;
     hardModeActivated = false;
+    pendingHardMode = false;
+    hardModeTriggerPipe = null;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -1363,8 +1367,9 @@
         pipe.scored = true;
         if (result.correct) {
           score++;
-          if (!hardModeActivated && score >= HARD_MODE_THRESHOLD) {
-            hardModeActivated = true;
+          if (!hardModeActivated && !pendingHardMode && score >= HARD_MODE_THRESHOLD) {
+            pendingHardMode = true;
+            hardModeTriggerPipe = pipe;
           }
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
@@ -1380,6 +1385,18 @@
           playWrongSound();
           if (score > 0) score--;
         }
+      }
+    }
+
+    // Activate hard mode only after bird fully clears the trigger pipe
+    if (pendingHardMode && hardModeTriggerPipe) {
+      const br = bird.size * 0.85;
+      // If pipe already scrolled off-screen, bird has long since cleared it
+      const pipeGone = !pipes.includes(hardModeTriggerPipe);
+      if (pipeGone || bird.x - br > hardModeTriggerPipe.x + hardModeTriggerPipe.width) {
+        hardModeActivated = true;
+        pendingHardMode = false;
+        hardModeTriggerPipe = null;
       }
     }
 
