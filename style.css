@@ -138,6 +138,20 @@ canvas {
   box-shadow: 0 4px 15px rgba(255, 105, 180, 0.5);
 }
 
+#leaderboardBtn {
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  color: #1a1a2e;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+  font-size: 1rem;
+  padding: 10px 30px;
+}
+
+#leaderboardBackBtn {
+  background: linear-gradient(135deg, #ff69b4, #ff1493);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(255, 105, 180, 0.5);
+}
+
 #customizeBtnGameOver {
   background: linear-gradient(135deg, #9b59b6, #8e44ad);
   color: #fff;
@@ -350,38 +364,44 @@ canvas {
   text-align: center;
 }
 
-#leaderboard-section h2 {
+#leaderboard-standalone-section {
+  margin: 10px 0;
+  text-align: center;
+}
+
+#leaderboard-section h2,
+#leaderboard-standalone-section h2 {
   font-size: 1.3rem;
   color: #ffd700;
   margin-bottom: 8px;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-#leaderboard-table {
+.leaderboard-table {
   border-collapse: collapse;
   width: 280px;
   margin: 0 auto;
   font-size: 1rem;
 }
 
-#leaderboard-table th,
-#leaderboard-table td {
+.leaderboard-table th,
+.leaderboard-table td {
   padding: 6px 12px;
   text-align: center;
 }
 
-#leaderboard-table th {
+.leaderboard-table th {
   color: #ffd700;
   border-bottom: 2px solid rgba(255, 215, 0, 0.4);
   font-size: 0.9rem;
 }
 
-#leaderboard-table td {
+.leaderboard-table td {
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#leaderboard-table tr.highlight td {
+.leaderboard-table tr.highlight td {
   color: #ffd700;
   font-weight: bold;
 }
