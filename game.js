@@ -92,6 +92,10 @@
   const HARD_MODE_SPEED_INCREMENT = 0.08; // speed increase per point beyond threshold
   const HARD_MODE_MAX_SPEED = 3.0;
 
+  // ---- Fixed-timestep loop (frame-rate independent) ----
+  const TARGET_FPS = 60;
+  const FRAME_DURATION = 1000 / TARGET_FPS; // ~16.667 ms per simulation step
+
   // ---- Clock reward (slow-down power-up) ----
   const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
   const CLOCK_SCORE_INTERVAL = 5;        // spawn a clock every N points (100 % of the time)
@@ -110,6 +114,8 @@
   let clocks = [];             // scrolling clock reward objects (move left like pipes)
   let slowdownTimer = 0;       // remaining frames of slow-down effect
   let lastClockScore = 0;      // last score at which a clock was spawned
+  let lastFrameTime = 0;       // timestamp of last gameLoop call (ms)
+  let accumulator = 0;         // accumulated time for fixed-timestep loop (ms)
 
   // ---- Customization data ----
   const SKINS = {
@@ -1426,8 +1432,22 @@
     drawUnlockNotification();
   }
 
-  function gameLoop() {
-    update();
+  function gameLoop(timestamp) {
+    if (!lastFrameTime) lastFrameTime = timestamp;
+    let elapsed = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
+
+    // Clamp to avoid spiral of death after tab switch or long pause
+    if (elapsed > 200) elapsed = 200;
+
+    accumulator += elapsed;
+
+    // Run simulation in fixed-size steps so speed is the same on all devices
+    while (accumulator >= FRAME_DURATION) {
+      update();
+      accumulator -= FRAME_DURATION;
+    }
+
     draw();
 
     if (!gameOver) {
@@ -1567,7 +1587,9 @@
     startScreen.classList.add("hidden");
     gameOverScreen.classList.add("hidden");
     customizeScreen.classList.add("hidden");
-    gameLoop();
+    lastFrameTime = 0;
+    accumulator = 0;
+    requestAnimationFrame(gameLoop);
   }
 
   function flap() {
