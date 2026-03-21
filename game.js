@@ -92,11 +92,22 @@
   const HARD_MODE_SPEED_INCREMENT = 0.08; // speed increase per point beyond threshold
   const HARD_MODE_MAX_SPEED = 3.0;
 
+  // ---- Clock reward (slow-down power-up) ----
+  const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
+  const CLOCK_SPAWN_CHANCE = 0.002;      // per-frame chance (~0.2 %) – very rare
+  const CLOCK_MAX_ACTIVE = 1;            // at most 1 clock on screen at a time
+  const CLOCK_FALL_SPEED = 1.8;          // pixels per frame (falls from the sky)
+  const CLOCK_SIZE = 22;                 // radius used for drawing & collision
+  const CLOCK_SLOWDOWN_DURATION = 180;   // frames (~3 seconds at 60 fps)
+  const CLOCK_SLOWDOWN_FACTOR = 0.4;     // multiply speed by this while active
+
   // ---- Game state ----
   let bird, pipes, score, frameCount, gameRunning, gameOver;
   let lives, invincibleTimer;
   let backgroundOffset = 0;
   let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
+  let clocks = [];             // falling clock reward objects
+  let slowdownTimer = 0;       // remaining frames of slow-down effect
 
   // ---- Customization data ----
   const SKINS = {
@@ -265,6 +276,24 @@
     osc.stop(audioCtx.currentTime + 0.3);
   }
 
+  function playClockSound() {
+    if (!audioCtx || !sfxGain) return;
+    ensureAudioResumed();
+    // Magical chime: two rising tones
+    [880, 1175].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.3);
+      osc.connect(g);
+      g.connect(sfxGain);
+      osc.start(audioCtx.currentTime + i * 0.12);
+      osc.stop(audioCtx.currentTime + i * 0.12 + 0.3);
+    });
+  }
+
   function toggleMute() {
     allMuted = !allMuted;
     localStorage.setItem("kirbyMuted", allMuted);
@@ -354,9 +383,16 @@
 
   // ---- Dynamic pipe speed (ramps up after hard mode threshold) ----
   function currentPipeSpeed() {
-    if (!isHardMode()) return PIPE_SPEED;
-    const extra = score - HARD_MODE_THRESHOLD;
-    return Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + extra * HARD_MODE_SPEED_INCREMENT);
+    let spd;
+    if (!isHardMode()) {
+      spd = PIPE_SPEED;
+    } else {
+      const extra = score - HARD_MODE_THRESHOLD;
+      spd = Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + extra * HARD_MODE_SPEED_INCREMENT);
+    }
+    // Apply clock slow-down if active
+    if (slowdownTimer > 0) spd *= CLOCK_SLOWDOWN_FACTOR;
+    return spd;
   }
 
   // ---- Dynamic pipe interval (wider after hard mode threshold) ----
@@ -954,6 +990,32 @@
     ctx.closePath();
   }
 
+  // ---- Slow-down HUD indicator ----
+  function drawSlowdownIndicator() {
+    if (slowdownTimer <= 0) return;
+    ctx.save();
+    const alpha = slowdownTimer < 30 ? slowdownTimer / 30 : 1;
+    ctx.globalAlpha = alpha;
+    // Small banner at top-left
+    const bx = 10;
+    const by = 130;
+    const bw = 120;
+    const bh = 32;
+    ctx.fillStyle = "rgba(30, 60, 120, 0.75)";
+    roundRect(bx, by, bw, bh, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#90CAF9";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#E3F2FD";
+    ctx.fillText("⏰ הַאָטָה!", bx + bw / 2, by + bh / 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   // ---- Question banner (large, always-visible, centred at top of screen) ----
   function drawQuestionBanner() {
     // Find the nearest pipe that hasn't been scored (the next challenge)
@@ -1063,6 +1125,117 @@
     c.closePath();
   }
 
+  // ---- Clock reward (falling slow-down power-up) ----
+  function drawClock(cx, cy, r) {
+    ctx.save();
+
+    // Outer circle (clock face)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#FFFDE7";
+    ctx.fill();
+    ctx.strokeStyle = "#5D4037";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Inner ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
+    ctx.strokeStyle = "#8D6E63";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Hour ticks
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 / 12) * i - Math.PI / 2;
+      const inner = r * 0.7;
+      const outer = r * 0.85;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+      ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+      ctx.strokeStyle = "#5D4037";
+      ctx.lineWidth = i % 3 === 0 ? 2 : 1;
+      ctx.stroke();
+    }
+
+    // Animated hands – use frameCount so they spin
+    const t = frameCount;
+    // Minute hand
+    const minAngle = (t * 0.02) - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(minAngle) * r * 0.65, cy + Math.sin(minAngle) * r * 0.65);
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Hour hand
+    const hrAngle = (t * 0.002) - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(hrAngle) * r * 0.45, cy + Math.sin(hrAngle) * r * 0.45);
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Centre dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.08, 0, Math.PI * 2);
+    ctx.fillStyle = "#D32F2F";
+    ctx.fill();
+
+    // Small bell / nub on top
+    ctx.beginPath();
+    ctx.arc(cx, cy - r - 4, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#5D4037";
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function spawnClock() {
+    // Random X but avoid very edges (leave some margin)
+    const margin = CLOCK_SIZE + 40;
+    const x = margin + Math.random() * (W - margin * 2);
+    clocks.push({ x: x, y: -CLOCK_SIZE, vy: CLOCK_FALL_SPEED });
+  }
+
+  function updateClocks() {
+    // Slow-down timer
+    if (slowdownTimer > 0) slowdownTimer--;
+
+    // Possibly spawn a new clock
+    if (score >= CLOCK_MIN_SCORE && clocks.length < CLOCK_MAX_ACTIVE && Math.random() < CLOCK_SPAWN_CHANCE) {
+      spawnClock();
+    }
+
+    // Move clocks downward (not affected by slow-down so it remains hard to catch)
+    clocks.forEach(function (c) { c.y += c.vy; });
+
+    // Collision with bird
+    clocks = clocks.filter(function (c) {
+      const dx = c.x - bird.x;
+      const dy = c.y - bird.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < CLOCK_SIZE + bird.size) {
+        // Collected!
+        slowdownTimer = CLOCK_SLOWDOWN_DURATION;
+        playClockSound();
+        spawnStars(c.x, c.y);
+        return false; // remove this clock
+      }
+      return true;
+    });
+
+    // Remove clocks that fell off screen
+    clocks = clocks.filter(function (c) { return c.y - CLOCK_SIZE < H; });
+  }
+
+  function drawClocks() {
+    clocks.forEach(function (c) {
+      drawClock(c.x, c.y, CLOCK_SIZE);
+    });
+  }
+
   // ---- Collision detection ----
   function checkCollision(pipe) {
     const bx = bird.x;
@@ -1105,6 +1278,8 @@
     gameRunning = true;
     gameOver = false;
     backgroundOffset = 0;
+    clocks = [];
+    slowdownTimer = 0;
   }
 
   // ---- Game loop ----
@@ -1182,11 +1357,13 @@
     }
 
     updateParticles();
+    updateClocks();
   }
 
   function draw() {
     drawBackground();
     drawPipes();
+    drawClocks();
     drawParticles();
 
     // Kirby (blink when invincible)
@@ -1200,6 +1377,7 @@
     }
 
     drawHUD();
+    drawSlowdownIndicator();
     drawQuestionBanner();
     drawUnlockNotification();
   }
