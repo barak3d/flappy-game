@@ -64,6 +64,10 @@
   const playerNameInput = document.getElementById("playerName");
   const saveScoreBtn = document.getElementById("saveScoreBtn");
   const leaderboardBody = document.getElementById("leaderboard-body");
+  const leaderboardBtn = document.getElementById("leaderboardBtn");
+  const leaderboardScreen = document.getElementById("leaderboard-screen");
+  const leaderboardBackBtn = document.getElementById("leaderboardBackBtn");
+  const leaderboardStandaloneBody = document.getElementById("leaderboard-standalone-body");
 
   // ---- Leaderboard constants ----
   const LEADERBOARD_KEY = "flappy-kirby-leaderboard";
@@ -1616,9 +1620,10 @@
     });
   }
 
-  async function renderLeaderboard(highlightIndex) {
+  async function renderLeaderboard(highlightIndex, targetBody) {
+    const body = targetBody || leaderboardBody;
     const board = await loadLeaderboard();
-    leaderboardBody.innerHTML = "";
+    body.innerHTML = "";
     if (board.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
@@ -1626,7 +1631,7 @@
       td.style.color = "#aaa";
       td.textContent = "אֵין שִׂיאִים עֲדַיִן";
       tr.appendChild(td);
-      leaderboardBody.appendChild(tr);
+      body.appendChild(tr);
       return;
     }
     const medals = ["🥇", "🥈", "🥉"];
@@ -1644,7 +1649,7 @@
       tr.appendChild(tdPlace);
       tr.appendChild(tdName);
       tr.appendChild(tdScore);
-      leaderboardBody.appendChild(tr);
+      body.appendChild(tr);
     });
   }
 
@@ -1709,6 +1714,7 @@
     startScreen.classList.add("hidden");
     gameOverScreen.classList.add("hidden");
     customizeScreen.classList.add("hidden");
+    leaderboardScreen.classList.add("hidden");
     lastFrameTime = 0;
     accumulator = 0;
     requestAnimationFrame(gameLoop);
@@ -1899,10 +1905,24 @@
     drawKirby(pw / 2, ph / 2, 35, 0, 0, pCtx);
   }
 
+  // ---- Leaderboard screen (standalone from welcome) ----
+  async function openLeaderboardScreen() {
+    startScreen.classList.add("hidden");
+    leaderboardScreen.classList.remove("hidden");
+    await renderLeaderboard(undefined, leaderboardStandaloneBody);
+  }
+
+  function closeLeaderboardScreen() {
+    leaderboardScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
+  }
+
   // ---- Event listeners ----
   customizeBtn.addEventListener("click", openCustomizeScreen);
   customizeBtnGameOver.addEventListener("click", openCustomizeScreen);
   customizeBackBtn.addEventListener("click", closeCustomizeScreen);
+  leaderboardBtn.addEventListener("click", openLeaderboardScreen);
+  leaderboardBackBtn.addEventListener("click", closeLeaderboardScreen);
   startBtn.addEventListener("click", startGame);
   restartBtn.addEventListener("click", startGame);
   muteBtn.addEventListener("click", toggleMute);

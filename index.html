@@ -16,6 +16,19 @@
       <p class="instructions">לִחְצוּ <strong>רֶוַח</strong> אוֹ <strong>הַקִּישׁוּ</strong> כְּדֵי לָעוּף</p>
       <button id="startBtn">הַתְחִילוּ לְשַׂחֵק</button>
       <button id="customizeBtn">🎨 הַתְאָמָה אִישִׁית</button>
+      <button id="leaderboardBtn">🏆 טַבְלַת שִׂיאִים</button>
+    </div>
+    <div id="leaderboard-screen" class="overlay hidden">
+      <h1>🏆 טַבְלַת הַשִּׂיאִים</h1>
+      <div id="leaderboard-standalone-section">
+        <table class="leaderboard-table">
+          <thead>
+            <tr><th>מָקוֹם</th><th>שֵׁם</th><th>נִקּוּד</th></tr>
+          </thead>
+          <tbody id="leaderboard-standalone-body"></tbody>
+        </table>
+      </div>
+      <button id="leaderboardBackBtn">חֲזָרָה</button>
     </div>
     <div id="customize-screen" class="overlay hidden">
       <h1>🎨 הַתְאָמָה אִישִׁית</h1>
@@ -45,7 +58,7 @@
       </div>
       <div id="leaderboard-section">
         <h2>🏆 טַבְלַת הַשִּׂיאִים</h2>
-        <table id="leaderboard-table">
+        <table class="leaderboard-table" id="leaderboard-table">
           <thead>
             <tr><th>מָקוֹם</th><th>שֵׁם</th><th>נִקּוּד</th></tr>
           </thead>
