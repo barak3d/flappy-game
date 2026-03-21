@@ -81,7 +81,8 @@
   const MUSIC_LOOP_COUNT = 200; // number of melody loops to schedule ahead
 
   // ---- Life system ----
-  const MAX_LIVES = 3;
+  const INITIAL_MAX_LIVES = 3;
+  const EXTRA_LIFE_INTERVAL = 10; // award an extra life (and raise the cap) every N points
   const INVINCIBILITY_FRAMES = 90; // ~1.5 seconds of invincibility after a hit
 
   // ---- Hard mode (after reaching this score, correct answer is no longer highlighted) ----
@@ -95,7 +96,7 @@
   let bird, pipes, score, frameCount, gameRunning, gameOver;
   let lives, invincibleTimer;
   let backgroundOffset = 0;
-  let hardModeRewardGiven = false; // tracks whether the extra life at 10 pts was awarded
+  let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
 
   // ---- Customization data ----
   const SKINS = {
@@ -345,6 +346,10 @@
 
   function isHardMode() {
     return score >= HARD_MODE_THRESHOLD;
+  }
+
+  function getMaxLives() {
+    return INITIAL_MAX_LIVES + Math.floor(score / EXTRA_LIFE_INTERVAL);
   }
 
   // ---- Dynamic pipe speed (ramps up after hard mode threshold) ----
@@ -914,7 +919,7 @@
 
     // Draw lives as hearts at top-right
     ctx.font = "28px 'Segoe UI', Arial, sans-serif";
-    for (let i = 0; i < MAX_LIVES; i++) {
+    for (let i = 0; i < getMaxLives(); i++) {
       const heartX = W - 18 - i * 34;
       const heartY = 120;
       if (i < lives) {
@@ -1093,9 +1098,9 @@
     particles = [];
     usedProblems.clear();
     score = 0;
-    lives = MAX_LIVES;
+    lives = INITIAL_MAX_LIVES;
     invincibleTimer = 0;
-    hardModeRewardGiven = false;
+    extraLivesAwarded = 0;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -1163,12 +1168,11 @@
           spawnStars(bird.x + 30, bird.y);
           checkUnlocks();
 
-          // Award an extra life when entering hard mode
-          if (score === HARD_MODE_THRESHOLD && !hardModeRewardGiven) {
-            hardModeRewardGiven = true;
-            if (lives < MAX_LIVES) {
-              lives++;
-            }
+          // Award an extra life at every EXTRA_LIFE_INTERVAL milestone
+          const milestonesReached = Math.floor(score / EXTRA_LIFE_INTERVAL);
+          while (extraLivesAwarded < milestonesReached) {
+            extraLivesAwarded++;
+            lives++;
           }
         } else {
           playWrongSound();
