@@ -96,7 +96,6 @@
   const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
   const CLOCK_SCORE_INTERVAL = 5;        // spawn a clock every N points (100 % of the time)
   const CLOCK_MAX_ACTIVE = 1;            // at most 1 clock on screen at a time
-  const CLOCK_FALL_SPEED = 0.3;          // pixels per frame – very slow vertical drop for easy catching
   const CLOCK_SIZE = 22;                 // radius used for drawing & collision
   const CLOCK_SLOWDOWN_FACTOR = 0.4;     // multiply speed by this while active
 
@@ -106,7 +105,7 @@
   let backgroundOffset = 0;
   let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
   let hardModeActivated = false; // once hard mode triggers, it stays on for the rest of the game
-  let clocks = [];             // falling clock reward objects
+  let clocks = [];             // scrolling clock reward objects (move left like pipes)
   let slowdownTimer = 0;       // remaining frames of slow-down effect
   let lastClockScore = 0;      // last score at which a clock was spawned
 
@@ -1194,10 +1193,25 @@
   }
 
   function spawnClock() {
-    // Random X but avoid very edges (leave some margin)
-    const margin = CLOCK_SIZE + 40;
-    const x = margin + Math.random() * (W - margin * 2);
-    clocks.push({ x: x, y: -CLOCK_SIZE, vy: CLOCK_FALL_SPEED });
+    // Place clock at the right edge so it scrolls in like pipes.
+    // Random Y within playable area (avoid floor and ceiling).
+    const marginY = CLOCK_SIZE + 30;
+    const y = marginY + Math.random() * (H - marginY * 2 - 40); // 40 = floor height
+
+    // Position clock before the next pipe: half an interval ahead of the last pipe,
+    // or at the right edge if there are no pipes yet.
+    const lastPipe = pipes[pipes.length - 1];
+    const interval = currentPipeInterval();
+    let x;
+    if (lastPipe) {
+      x = lastPipe.x + interval / 2;
+      // Ensure it is at least off-screen to the right
+      if (x < W + CLOCK_SIZE) x = W + CLOCK_SIZE;
+    } else {
+      x = W + CLOCK_SIZE;
+    }
+
+    clocks.push({ x: x, y: y });
   }
 
   function updateClocks() {
@@ -1210,8 +1224,9 @@
       spawnClock();
     }
 
-    // Move clocks downward (not affected by slow-down so it remains hard to catch)
-    clocks.forEach(function (c) { c.y += c.vy; });
+    // Move clocks horizontally with the game (same speed as pipes)
+    const clockSpeed = currentPipeSpeed();
+    clocks.forEach(function (c) { c.x -= clockSpeed; });
 
     // Collision with bird
     clocks = clocks.filter(function (c) {
@@ -1232,8 +1247,8 @@
       return true;
     });
 
-    // Remove clocks that fell off screen
-    clocks = clocks.filter(function (c) { return c.y - CLOCK_SIZE < H; });
+    // Remove clocks that scrolled off the left edge
+    clocks = clocks.filter(function (c) { return c.x + CLOCK_SIZE > 0; });
   }
 
   function drawClocks() {
