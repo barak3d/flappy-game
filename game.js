@@ -93,12 +93,10 @@
   const HARD_MODE_MAX_SPEED = 3.0;
 
   // ---- Clock reward (slow-down power-up) ----
-  const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
-  const CLOCK_SPAWN_CHANCE = 0.002;      // per-frame chance (~0.2 %) – very rare
+  const CLOCK_SCORE_INTERVAL = 5;        // spawn a clock every N points (100 % of the time)
   const CLOCK_MAX_ACTIVE = 1;            // at most 1 clock on screen at a time
   const CLOCK_FALL_SPEED = 1.8;          // pixels per frame (falls from the sky)
   const CLOCK_SIZE = 22;                 // radius used for drawing & collision
-  const CLOCK_SLOWDOWN_DURATION = 180;   // frames (~3 seconds at 60 fps)
   const CLOCK_SLOWDOWN_FACTOR = 0.4;     // multiply speed by this while active
 
   // ---- Game state ----
@@ -108,6 +106,7 @@
   let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
   let clocks = [];             // falling clock reward objects
   let slowdownTimer = 0;       // remaining frames of slow-down effect
+  let lastClockScore = 0;      // last score at which a clock was spawned
 
   // ---- Customization data ----
   const SKINS = {
@@ -1203,8 +1202,9 @@
     // Slow-down timer
     if (slowdownTimer > 0) slowdownTimer--;
 
-    // Possibly spawn a new clock
-    if (score >= CLOCK_MIN_SCORE && clocks.length < CLOCK_MAX_ACTIVE && Math.random() < CLOCK_SPAWN_CHANCE) {
+    // Spawn a clock at every CLOCK_SCORE_INTERVAL milestone (100 % of the time)
+    if (score > 0 && score % CLOCK_SCORE_INTERVAL === 0 && score !== lastClockScore && clocks.length < CLOCK_MAX_ACTIVE) {
+      lastClockScore = score;
       spawnClock();
     }
 
@@ -1217,8 +1217,12 @@
       const dy = c.y - bird.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < CLOCK_SIZE + bird.size) {
-        // Collected!
-        slowdownTimer = CLOCK_SLOWDOWN_DURATION;
+        // Collected! – calculate duration sufficient to score one point
+        const baseSpeed = isHardMode()
+          ? Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + (score - HARD_MODE_THRESHOLD) * HARD_MODE_SPEED_INCREMENT)
+          : PIPE_SPEED;
+        const interval = currentPipeInterval();
+        slowdownTimer = Math.min(1500, Math.ceil(interval / (baseSpeed * CLOCK_SLOWDOWN_FACTOR)));
         playClockSound();
         spawnStars(c.x, c.y);
         return false; // remove this clock
@@ -1280,6 +1284,7 @@
     backgroundOffset = 0;
     clocks = [];
     slowdownTimer = 0;
+    lastClockScore = 0;
   }
 
   // ---- Game loop ----
