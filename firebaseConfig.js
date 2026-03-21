@@ -1,7 +1,6 @@
 // firebaseConfig.js — Firebase project configuration
 //
-// Uses the same Firebase project as space-racer (barak3d/space-racer)
-// with a separate Firestore collection for this game.
+// Dedicated Firebase project for flappy-game (barak3d/flappy-game).
 //
 // ─── SECURITY NOTICE ──────────────────────────────────────────────────────────
 // Firebase Web API keys are NOT secrets. Google explicitly designs them to be
@@ -14,11 +13,11 @@
 // eslint-disable-next-line no-unused-vars
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBDqvv82aBViHmSDu2dgQ3JGNbNTqflMqE",
-  authDomain: "space-racer-7d447.firebaseapp.com",
-  projectId: "space-racer-7d447",
-  storageBucket: "space-racer-7d447.firebasestorage.app",
-  messagingSenderId: "836177941752",
-  appId: "1:836177941752:web:8bffb1aa3f8c86ac19970d",
+  authDomain: "flappy-game-9d235.firebaseapp.com",
+  projectId: "flappy-game-9d235",
+  storageBucket: "flappy-game-9d235.firebasestorage.app",
+  messagingSenderId: "798097424289",
+  appId: "1:798097424289:web:55b618b92931905a7815e0",
 };
 
 // eslint-disable-next-line no-unused-vars
