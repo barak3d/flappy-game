@@ -1156,8 +1156,7 @@
           }
         } else {
           playWrongSound();
-          takeDamage();
-          if (gameOver) return;
+          if (score > 0) score--;
         }
       }
     }
