@@ -1105,18 +1105,14 @@
     // Invincibility timer
     if (invincibleTimer > 0) invincibleTimer--;
 
-    // Floor / ceiling
+    // Floor / ceiling (no life penalty, just reposition)
     if (bird.y + bird.size > H - 40) {
       bird.y = H - 40 - bird.size;
       bird.vy = FLAP_STRENGTH * 0.6;
-      takeDamage();
-      if (gameOver) return;
     }
     if (bird.y - bird.size < 0) {
       bird.y = bird.size;
       bird.vy = 0;
-      takeDamage();
-      if (gameOver) return;
     }
 
     // Spawn pipes (delay the first pipe to give the player time to read)
