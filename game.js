@@ -136,14 +136,14 @@
   let musicGain = null;
   let sfxGain = null;
   let musicPlaying = false;
-  let allMuted = false;
+  let allMuted = localStorage.getItem("kirbyMuted") === "true";
   let flapOsc = null;
 
   function initAudio() {
     if (audioCtx) return;
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 1.0;
+    masterGain.gain.value = allMuted ? 0 : 1.0;
     masterGain.connect(audioCtx.destination);
     musicGain = audioCtx.createGain();
     musicGain.gain.value = 0.18;
@@ -151,11 +151,22 @@
     sfxGain = audioCtx.createGain();
     sfxGain.gain.value = 1.0;
     sfxGain.connect(masterGain);
+    // Resume AudioContext if suspended (browser autoplay policy)
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+  }
+
+  function ensureAudioResumed() {
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
   }
 
   // Simple happy background melody using oscillators
   function startMusic() {
     if (!audioCtx || musicPlaying) return;
+    ensureAudioResumed();
     musicPlaying = true;
 
     // Simple melody using note frequencies (Hz): C4=262, D4=294, E4=330, F4=349, G4=392; 0=rest
@@ -190,6 +201,7 @@
 
   function playFlapSound() {
     if (!audioCtx || !sfxGain) return;
+    ensureAudioResumed();
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = "sine";
@@ -205,6 +217,7 @@
 
   function playCorrectSound() {
     if (!audioCtx || !sfxGain) return;
+    ensureAudioResumed();
     const notes = [523, 659, 784];
     notes.forEach((freq, i) => {
       const osc = audioCtx.createOscillator();
@@ -222,6 +235,7 @@
 
   function playWrongSound() {
     if (!audioCtx || !sfxGain) return;
+    ensureAudioResumed();
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = "sawtooth";
@@ -236,6 +250,7 @@
 
   function playHitSound() {
     if (!audioCtx || !sfxGain) return;
+    ensureAudioResumed();
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = "square";
@@ -251,6 +266,7 @@
 
   function toggleMute() {
     allMuted = !allMuted;
+    localStorage.setItem("kirbyMuted", allMuted);
     if (masterGain) {
       masterGain.gain.value = allMuted ? 0 : 1.0;
     }
@@ -1519,6 +1535,18 @@
   startBtn.addEventListener("click", startGame);
   restartBtn.addEventListener("click", startGame);
   muteBtn.addEventListener("click", toggleMute);
+
+  // Apply persisted mute state to button text on load
+  if (allMuted) {
+    muteBtn.textContent = "🔇 קוֹל כָּבוּי";
+  }
+
+  // Resume AudioContext when the tab regains visibility (browser may suspend it)
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      ensureAudioResumed();
+    }
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
