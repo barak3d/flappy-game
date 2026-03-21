@@ -106,6 +106,7 @@
   let lives, invincibleTimer;
   let backgroundOffset = 0;
   let extraLivesAwarded = 0; // tracks how many milestone extra lives have been given
+  let hardModeActivated = false; // once hard mode triggers, it stays on for the rest of the game
   let clocks = [];             // falling clock reward objects
   let slowdownTimer = 0;       // remaining frames of slow-down effect
 
@@ -374,7 +375,7 @@
   }
 
   function isHardMode() {
-    return score >= HARD_MODE_THRESHOLD;
+    return hardModeActivated;
   }
 
   function getMaxLives() {
@@ -387,7 +388,7 @@
     if (!isHardMode()) {
       spd = PIPE_SPEED;
     } else {
-      const extra = score - HARD_MODE_THRESHOLD;
+      const extra = Math.max(0, score - HARD_MODE_THRESHOLD);
       spd = Math.min(HARD_MODE_MAX_SPEED, HARD_MODE_INITIAL_SPEED + extra * HARD_MODE_SPEED_INCREMENT);
     }
     // Apply clock slow-down if active
@@ -1274,6 +1275,7 @@
     lives = INITIAL_MAX_LIVES;
     invincibleTimer = 0;
     extraLivesAwarded = 0;
+    hardModeActivated = false;
     frameCount = 0;
     gameRunning = true;
     gameOver = false;
@@ -1339,6 +1341,9 @@
         pipe.scored = true;
         if (result.correct) {
           score++;
+          if (!hardModeActivated && score >= HARD_MODE_THRESHOLD) {
+            hardModeActivated = true;
+          }
           playCorrectSound();
           spawnStars(bird.x + 30, bird.y);
           checkUnlocks();
