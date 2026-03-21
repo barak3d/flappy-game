@@ -117,6 +117,11 @@
   let lastFrameTime = 0;       // timestamp of last gameLoop call (ms)
   let accumulator = 0;         // accumulated time for fixed-timestep loop (ms)
 
+  // ---- Interpolation state (previous simulation tick) ----
+  let prevBirdY = 0;
+  let prevBirdRotation = 0;
+  let prevBackgroundOffset = 0;
+
   // ---- Customization data ----
   const SKINS = {
     classic: { name: "קְלָסִי", body: "#FF69B4", stroke: "#D1477A", blush: "#FF1493", feet: "#DC143C", unlock: 0 },
@@ -434,6 +439,7 @@
 
     return {
       x: x,
+      prevX: x,
       width: PIPE_WIDTH,
       problem: problem,
       sections: sections,
@@ -1086,6 +1092,8 @@
       particles.push({
         x: x,
         y: y,
+        prevX: x,
+        prevY: y,
         vx: (Math.random() - 0.5) * 6,
         vy: (Math.random() - 0.5) * 6,
         life: 40,
@@ -1219,7 +1227,7 @@
       x = W + CLOCK_SIZE;
     }
 
-    clocks.push({ x: x, y: y });
+    clocks.push({ x: x, y: y, prevX: x });
   }
 
   function updateClocks() {
@@ -1313,6 +1321,10 @@
     clocks = [];
     slowdownTimer = 0;
     lastClockScore = 0;
+    // Initialise interpolation state so the first rendered frame is correct
+    prevBirdY = H / 2;
+    prevBirdRotation = 0;
+    prevBackgroundOffset = 0;
   }
 
   // ---- Game loop ----
@@ -1432,6 +1444,23 @@
     drawUnlockNotification();
   }
 
+  // ---- Interpolation helpers ----
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function savePrevState() {
+    prevBirdY = bird.y;
+    prevBirdRotation = bird.rotation;
+    prevBackgroundOffset = backgroundOffset;
+    for (let i = 0; i < pipes.length; i++) pipes[i].prevX = pipes[i].x;
+    for (let i = 0; i < clocks.length; i++) clocks[i].prevX = clocks[i].x;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].prevX = particles[i].x;
+      particles[i].prevY = particles[i].y;
+    }
+  }
+
   function gameLoop(timestamp) {
     if (!lastFrameTime) lastFrameTime = timestamp;
     let elapsed = timestamp - lastFrameTime;
@@ -1444,11 +1473,51 @@
 
     // Run simulation in fixed-size steps so speed is the same on all devices
     while (accumulator >= FRAME_DURATION) {
+      savePrevState();
       update();
       accumulator -= FRAME_DURATION;
     }
 
+    // Interpolation factor: how far we are between the last two simulation ticks.
+    // Rendering at sub-frame positions lets 120 Hz+ screens show smoother motion
+    // and reduces visible stutter on slower devices, while game pacing stays fixed.
+    const alpha = accumulator / FRAME_DURATION;
+
+    // Temporarily replace positions with interpolated values for rendering
+    const simBirdY = bird.y;
+    const simBirdRot = bird.rotation;
+    const simBgOffset = backgroundOffset;
+    bird.y = lerp(prevBirdY, bird.y, alpha);
+    bird.rotation = lerp(prevBirdRotation, bird.rotation, alpha);
+    backgroundOffset = lerp(prevBackgroundOffset, backgroundOffset, alpha);
+
+    for (let i = 0; i < pipes.length; i++) {
+      pipes[i].simX = pipes[i].x;
+      pipes[i].x = lerp(pipes[i].prevX, pipes[i].x, alpha);
+    }
+    for (let i = 0; i < clocks.length; i++) {
+      clocks[i].simX = clocks[i].x;
+      clocks[i].x = lerp(clocks[i].prevX, clocks[i].x, alpha);
+    }
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].simX = particles[i].x;
+      particles[i].simY = particles[i].y;
+      particles[i].x = lerp(particles[i].prevX, particles[i].x, alpha);
+      particles[i].y = lerp(particles[i].prevY, particles[i].y, alpha);
+    }
+
     draw();
+
+    // Restore actual simulation state so the next update() works with correct values
+    bird.y = simBirdY;
+    bird.rotation = simBirdRot;
+    backgroundOffset = simBgOffset;
+    for (let i = 0; i < pipes.length; i++) pipes[i].x = pipes[i].simX;
+    for (let i = 0; i < clocks.length; i++) clocks[i].x = clocks[i].simX;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].x = particles[i].simX;
+      particles[i].y = particles[i].simY;
+    }
 
     if (!gameOver) {
       requestAnimationFrame(gameLoop);
