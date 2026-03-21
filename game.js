@@ -96,7 +96,7 @@
   const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
   const CLOCK_SCORE_INTERVAL = 5;        // spawn a clock every N points (100 % of the time)
   const CLOCK_MAX_ACTIVE = 1;            // at most 1 clock on screen at a time
-  const CLOCK_FALL_SPEED = 0.8;          // pixels per frame – slow vertical drop for easy catching
+  const CLOCK_FALL_SPEED = 0.3;          // pixels per frame – very slow vertical drop for easy catching
   const CLOCK_SIZE = 22;                 // radius used for drawing & collision
   const CLOCK_SLOWDOWN_FACTOR = 0.4;     // multiply speed by this while active
 
@@ -1298,8 +1298,9 @@
     const speed = currentPipeSpeed();
     backgroundOffset += speed;
 
-    // Bird physics
-    bird.vy += GRAVITY;
+    // Bird physics (apply clock slow-down to gravity for easier control)
+    const grav = slowdownTimer > 0 ? GRAVITY * CLOCK_SLOWDOWN_FACTOR : GRAVITY;
+    bird.vy += grav;
     bird.y += bird.vy;
     bird.rotation = Math.min(bird.vy * 0.06, 0.5);
 
@@ -1539,7 +1540,8 @@
 
   function flap() {
     if (!gameRunning) return;
-    bird.vy = FLAP_STRENGTH;
+    // Apply clock slow-down to flap strength for easier control
+    bird.vy = slowdownTimer > 0 ? FLAP_STRENGTH * CLOCK_SLOWDOWN_FACTOR : FLAP_STRENGTH;
     bird.flapAnim = 14;
     playFlapSound();
   }
