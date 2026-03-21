@@ -9,8 +9,37 @@
   // ---- Canvas setup ----
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
-  const W = canvas.width;   // 480
-  const H = canvas.height;  // 640
+  let W = canvas.width;   // 480 default, updated by resizeCanvas()
+  let H = canvas.height;  // 640 default, updated by resizeCanvas()
+
+  // ---- Dynamic canvas sizing ----
+  // Fills the viewport on mobile/tablet; on desktop (>768px) keeps original aspect ratio
+  function resizeCanvas() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    if (vw <= 768) {
+      // Mobile / tablet: fill the entire viewport
+      canvas.width = vw;
+      canvas.height = vh;
+    } else {
+      // Desktop: maintain original proportions
+      canvas.width = 480;
+      canvas.height = 640;
+    }
+
+    W = canvas.width;
+    H = canvas.height;
+  }
+
+  resizeCanvas();
+  window.addEventListener("resize", function () {
+    resizeCanvas();
+    // Redraw idle screen if game is not running
+    if (!gameRunning && !gameOver) {
+      drawIdleScreen();
+    }
+  });
 
   // ---- UI elements ----
   const startScreen = document.getElementById("start-screen");
@@ -915,7 +944,7 @@
     ctx.save();
 
     // Large semi-transparent rounded banner background spanning most of the width
-    const bw = 380;
+    const bw = Math.min(380, W - 20);
     const bh = 70;
     const bx = (W - bw) / 2;
     const by = 6;
