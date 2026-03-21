@@ -93,9 +93,10 @@
   const HARD_MODE_MAX_SPEED = 3.0;
 
   // ---- Clock reward (slow-down power-up) ----
+  const CLOCK_MIN_SCORE = 15;            // only spawns after reaching this score
   const CLOCK_SCORE_INTERVAL = 5;        // spawn a clock every N points (100 % of the time)
   const CLOCK_MAX_ACTIVE = 1;            // at most 1 clock on screen at a time
-  const CLOCK_FALL_SPEED = 1.8;          // pixels per frame (falls from the sky)
+  const CLOCK_FALL_SPEED = 0.8;          // pixels per frame – slow vertical drop for easy catching
   const CLOCK_SIZE = 22;                 // radius used for drawing & collision
   const CLOCK_SLOWDOWN_FACTOR = 0.4;     // multiply speed by this while active
 
@@ -1202,8 +1203,8 @@
     // Slow-down timer
     if (slowdownTimer > 0) slowdownTimer--;
 
-    // Spawn a clock at every CLOCK_SCORE_INTERVAL milestone (100 % of the time)
-    if (score > 0 && score % CLOCK_SCORE_INTERVAL === 0 && score !== lastClockScore && clocks.length < CLOCK_MAX_ACTIVE) {
+    // Spawn a clock at every CLOCK_SCORE_INTERVAL milestone starting at CLOCK_MIN_SCORE
+    if (score >= CLOCK_MIN_SCORE && score % CLOCK_SCORE_INTERVAL === 0 && score !== lastClockScore && clocks.length < CLOCK_MAX_ACTIVE) {
       lastClockScore = score;
       spawnClock();
     }
