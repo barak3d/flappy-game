@@ -354,7 +354,7 @@
 
     // Determine 3 gap positions (we create 3 openings, each shows an answer)
     // The pipe is divided into 3 sections with a gap in each
-    const sectionH = H / 3;
+    const sectionH = (H - 40) / 3;
     const gapSize = currentGapSize();
 
     const sections = options.map((val, i) => {
@@ -714,7 +714,7 @@
       const px = pipe.x;
 
       // Draw pipe columns with gaps
-      const sectionH = H / 3;
+      const sectionH = (H - 40) / 3;
 
       pipe.sections.forEach((sec, i) => {
         // Pipe above gap (cap at bottom = opening toward gap)
