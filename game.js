@@ -67,7 +67,7 @@
 
   // ---- Leaderboard constants ----
   const LEADERBOARD_KEY = "flappy-kirby-leaderboard";
-  const MAX_LEADERBOARD = 5;
+  const MAX_LEADERBOARD = 10;
 
   // ---- Firebase initialization ----
   let _firestoreDb = null;
