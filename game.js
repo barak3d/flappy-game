@@ -113,6 +113,7 @@
   let hardModeTriggerPipe = null; // the pipe that caused the threshold to be reached
   let clocks = [];             // scrolling clock reward objects (move left like pipes)
   let slowdownTimer = 0;       // remaining frames of slow-down effect
+  let slowdownDuration = 0;    // total frames when slow-down was activated (for progress bar)
   let lastClockScore = 0;      // last score at which a clock was spawned
   let lastFrameTime = 0;       // timestamp of last gameLoop call (ms)
   let accumulator = 0;         // accumulated time for fixed-timestep loop (ms)
@@ -1010,22 +1011,41 @@
     ctx.save();
     const alpha = slowdownTimer < 30 ? slowdownTimer / 30 : 1;
     ctx.globalAlpha = alpha;
-    // Small banner at top-left
+    // Banner at top-left with progress bar
     const bx = 10;
     const by = 130;
-    const bw = 120;
-    const bh = 32;
+    const bw = 140;
+    const bh = 44;
     ctx.fillStyle = "rgba(30, 60, 120, 0.75)";
     roundRect(bx, by, bw, bh, 10);
     ctx.fill();
     ctx.strokeStyle = "#90CAF9";
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
+    // Text label with remaining seconds
+    const remainSec = Math.ceil(slowdownTimer / TARGET_FPS);
+    ctx.font = "bold 15px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.direction = "ltr";
     ctx.fillStyle = "#E3F2FD";
-    ctx.fillText("⏰ הַאָטָה!", bx + bw / 2, by + bh / 2);
+    ctx.fillText("⏰ " + remainSec + "s הַאָטָה", bx + bw / 2, by + 14);
+    // Progress bar background
+    const barX = bx + 10;
+    const barY = by + 28;
+    const barW = bw - 20;
+    const barH = 8;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    roundRect(barX, barY, barW, barH, 4);
+    ctx.fill();
+    // Progress bar fill
+    const progress = slowdownDuration > 0 ? slowdownTimer / slowdownDuration : 0;
+    const fillW = Math.max(0, barW * progress);
+    if (fillW > 0) {
+      ctx.fillStyle = progress > 0.3 ? "#64B5F6" : "#FF7043";
+      roundRect(barX, barY, fillW, barH, 4);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -1256,6 +1276,7 @@
           : PIPE_SPEED;
         const interval = currentPipeInterval();
         slowdownTimer = Math.min(1500, Math.ceil(interval / (baseSpeed * CLOCK_SLOWDOWN_FACTOR)));
+        slowdownDuration = slowdownTimer;
         playClockSound();
         spawnStars(c.x, c.y);
         return false; // remove this clock
@@ -1320,6 +1341,7 @@
     backgroundOffset = 0;
     clocks = [];
     slowdownTimer = 0;
+    slowdownDuration = 0;
     lastClockScore = 0;
     // Initialise interpolation state so the first rendered frame is correct
     prevBirdY = H / 2;
