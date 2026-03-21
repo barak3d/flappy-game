@@ -69,6 +69,21 @@
   const LEADERBOARD_KEY = "flappy-kirby-leaderboard";
   const MAX_LEADERBOARD = 5;
 
+  // ---- Firebase initialization ----
+  let _firestoreDb = null;
+  var _collectionName = typeof FLAPPY_COLLECTION_NAME !== "undefined"
+    ? FLAPPY_COLLECTION_NAME : "flappy-leaderboard";
+  try {
+    if (typeof firebase !== "undefined" &&
+        typeof FIREBASE_CONFIG !== "undefined" &&
+        FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId) {
+      const app = firebase.initializeApp(FIREBASE_CONFIG);
+      _firestoreDb = firebase.firestore(app);
+    }
+  } catch (e) {
+    console.warn("Firebase init failed:", e.message);
+  }
+
   // ---- Game constants ----
   const GRAVITY = 0.45;
   const FLAP_STRENGTH = -7.5;
@@ -1537,7 +1552,7 @@
   }
 
   // ---- Leaderboard helpers ----
-  function loadLeaderboard() {
+  function loadLeaderboardLocal() {
     try {
       const data = localStorage.getItem(LEADERBOARD_KEY);
       return data ? JSON.parse(data) : [];
@@ -1546,30 +1561,63 @@
     }
   }
 
-  function saveLeaderboard(board) {
+  function saveLeaderboardLocal(board) {
     try {
       localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
     } catch (_) { /* storage full or unavailable */ }
   }
 
-  function qualifiesForLeaderboard(newScore) {
+  async function loadLeaderboard() {
+    if (_firestoreDb) {
+      try {
+        var snapshot = await _firestoreDb.collection(_collectionName)
+          .orderBy("score", "desc")
+          .limit(MAX_LEADERBOARD)
+          .get();
+        return snapshot.docs.map(function(doc) { return doc.data(); });
+      } catch (e) {
+        console.warn("Firebase loadLeaderboard failed:", e.message);
+      }
+    }
+    return loadLeaderboardLocal();
+  }
+
+  async function qualifiesForLeaderboard(newScore) {
     if (newScore <= 0) return false;
-    const board = loadLeaderboard();
+    var board = await loadLeaderboard();
     if (board.length < MAX_LEADERBOARD) return true;
     return newScore > board[board.length - 1].score;
   }
 
-  function addToLeaderboard(name, newScore) {
-    const board = loadLeaderboard();
-    board.push({ name: name, score: newScore });
-    board.sort((a, b) => b.score - a.score);
-    if (board.length > MAX_LEADERBOARD) board.length = MAX_LEADERBOARD;
-    saveLeaderboard(board);
-    return board.findIndex((e) => e.name === name && e.score === newScore);
+  async function addToLeaderboard(name, newScore) {
+    if (_firestoreDb) {
+      try {
+        await _firestoreDb.collection(_collectionName).add({
+          name: String(name).slice(0, 20).trim(),
+          score: Math.max(0, Math.trunc(Number(newScore) || 0)),
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        var board = await loadLeaderboard();
+        return board.findIndex(function(e) {
+          return e.name === name && e.score === newScore;
+        });
+      } catch (e) {
+        console.warn("Firebase addToLeaderboard failed:", e.message);
+      }
+    }
+    // Fallback to localStorage
+    var localBoard = loadLeaderboardLocal();
+    localBoard.push({ name: name, score: newScore });
+    localBoard.sort(function(a, b) { return b.score - a.score; });
+    if (localBoard.length > MAX_LEADERBOARD) localBoard.length = MAX_LEADERBOARD;
+    saveLeaderboardLocal(localBoard);
+    return localBoard.findIndex(function(e) {
+      return e.name === name && e.score === newScore;
+    });
   }
 
-  function renderLeaderboard(highlightIndex) {
-    const board = loadLeaderboard();
+  async function renderLeaderboard(highlightIndex) {
+    const board = await loadLeaderboard();
     leaderboardBody.innerHTML = "";
     if (board.length === 0) {
       const tr = document.createElement("tr");
@@ -1600,7 +1648,7 @@
     });
   }
 
-  function endGame() {
+  async function endGame() {
     gameRunning = false;
     gameOver = true;
     // bestScore is already persisted by checkUnlocks() during gameplay;
@@ -1612,7 +1660,7 @@
     finalScoreEl.textContent = score;
     bestScoreValueEl.textContent = bestScore;
 
-    if (qualifiesForLeaderboard(score)) {
+    if (await qualifiesForLeaderboard(score)) {
       nameInputSection.classList.remove("hidden");
       playerNameInput.value = "";
       playerNameInput.focus();
@@ -1620,19 +1668,24 @@
       nameInputSection.classList.add("hidden");
     }
 
-    renderLeaderboard();
+    await renderLeaderboard();
     gameOverScreen.classList.remove("hidden");
   }
 
-  function handleSaveScore() {
+  async function handleSaveScore() {
     const name = playerNameInput.value.trim();
     if (!name) {
       playerNameInput.focus();
       return;
     }
-    const idx = addToLeaderboard(name, score);
-    nameInputSection.classList.add("hidden");
-    renderLeaderboard(idx);
+    saveScoreBtn.disabled = true;
+    try {
+      const idx = await addToLeaderboard(name, score);
+      nameInputSection.classList.add("hidden");
+      await renderLeaderboard(idx);
+    } finally {
+      saveScoreBtn.disabled = false;
+    }
   }
 
   saveScoreBtn.addEventListener("click", handleSaveScore);
